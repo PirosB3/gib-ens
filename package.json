@@ -1,0 +1,5 @@
+{
+  "name": "gib-ens",
+  "private": true,
+  "workspaces": ["sol"]
+}
