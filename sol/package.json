@@ -10,7 +10,7 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "test:watch": "nodemon --watch contracts --ext sol --exec 'yarn test'",
+    "test:watch": "nodemon --watch contracts --watch test --ext sol,js,ts --exec 'yarn test'",
     "build": "yarn compile && yarn test"
   },
   "devDependencies": {

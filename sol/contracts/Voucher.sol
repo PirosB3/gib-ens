@@ -32,11 +32,15 @@ contract Voucher is Ownable, ReentrancyGuard  {
 
     event CompletedRegistration(bytes32 indexed policyHash, address indexed owner);
 
-    mapping(address => mapping(bytes32 => RedeemResult)) private redeemed;
+    mapping(address => mapping(bytes32 => RedeemResult)) public redeemed;
     bool public redeemFrozen = false;
     address public authority;
     IETHRegistrarController private registrarController;
 
+    function getRedeemResult22(address owner, bytes32 value) public view returns (bool, bytes32) {
+        RedeemResult memory result = redeemed[owner][value];
+        return (result.isRedeemed, result.domainIdentifier);
+    }
 
     constructor(address _authority, address _registrarController) {
         authority = _authority;
@@ -110,17 +114,19 @@ contract Voucher is Ownable, ReentrancyGuard  {
     }
 
     function _verifySignature(
+        bytes32 policyHash,
         ENSParams calldata params,
         uint256 maxPrice,
         uint256 expiry,
         bytes calldata signature
     ) internal view {
         bytes32 commitment = _makeCommitment(params);
-        bytes memory domain = abi.encodePacked(address(this), commitment, maxPrice, expiry);
+        bytes memory domain = abi.encodePacked(address(this), policyHash, commitment, maxPrice, expiry);
         address signer = keccak256(domain).toEthSignedMessageHash().recover(signature);
         require(signer == authority, "Invalid signature");
     }
 
+    // BUG with POLICY HASH!
     function completeENSRegistration(
         bytes32 policyHash,
         uint256 maxPrice,
@@ -134,7 +140,7 @@ contract Voucher is Ownable, ReentrancyGuard  {
 
         // Check signature - this is the most important part of the function. If the signature is valid, then we can
         // be sure that the user has permission to register the domain.
-        _verifySignature(params, maxPrice, expiry, signature);
+        _verifySignature(policyHash, params, maxPrice, expiry, signature);
 
         // This completes the registration. The user will first need to call
         // commit() with the commitment hash, and then call register() once the commitment has been finalized.
