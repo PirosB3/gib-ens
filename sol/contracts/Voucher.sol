@@ -126,7 +126,6 @@ contract Voucher is Ownable, ReentrancyGuard  {
         require(signer == authority, "Invalid signature");
     }
 
-    // BUG with POLICY HASH!
     function completeENSRegistration(
         bytes32 policyHash,
         uint256 maxPrice,
