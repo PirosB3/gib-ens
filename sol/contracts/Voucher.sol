@@ -6,32 +6,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "./interfaces/IETHRegistrarController.sol";
 
 // Interface for the ETHRegistrarController
-interface IETHRegistrarController {
-    function register(
-        string calldata name,
-        address owner,
-        uint256 duration,
-        bytes32 secret,
-        address resolver,
-        bytes[] calldata data,
-        bool reverseRecord,
-        uint16 ownerControlledFuses
-    ) external payable;
-
-    // Pure function - simply returns hash of the domain
-    function makeCommitment(
-        string memory name,
-        address owner,
-        uint256 duration,
-        bytes32 secret,
-        address resolver,
-        bytes[] calldata data,
-        bool reverseRecord,
-        uint16 ownerControlledFuses
-    ) external pure returns (bytes32);
-}
 
 contract Voucher is Ownable, ReentrancyGuard  {
     using SafeMath for uint256;
@@ -90,6 +67,8 @@ contract Voucher is Ownable, ReentrancyGuard  {
         redeemFrozen = false;
     }
 
+    receive() external payable {}
+
     // Simple function can be used as a catch all solution in case of emergency
     function executeCall(address _to, uint256 _value, bytes calldata _data) external onlyOwner returns (bool, bytes memory) {
         (bool success, bytes memory result) = _to.call{value: _value}(_data);
@@ -137,7 +116,7 @@ contract Voucher is Ownable, ReentrancyGuard  {
         bytes calldata signature
     ) internal view {
         bytes32 commitment = _makeCommitment(params);
-        bytes memory domain = abi.encode(address(this), commitment, maxPrice, expiry);
+        bytes memory domain = abi.encodePacked(address(this), commitment, maxPrice, expiry);
         address signer = keccak256(domain).toEthSignedMessageHash().recover(signature);
         require(signer == authority, "Invalid signature");
     }
@@ -150,7 +129,7 @@ contract Voucher is Ownable, ReentrancyGuard  {
         bytes calldata signature
     ) external notFrozen nonReentrant {
         // Cheap simple checks: check that the expiry is in the future, and that the contract has enough balance
-        require(block.timestamp <= expiry, "The signature has expired.");
+        require(block.timestamp <= expiry, "The expiration window has passed.");
         require(address(this).balance >= maxPrice, "Insufficient contract balance for registration");
 
         // Check signature - this is the most important part of the function. If the signature is valid, then we can
