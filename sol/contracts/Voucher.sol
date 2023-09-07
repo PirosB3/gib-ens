@@ -32,12 +32,12 @@ contract Voucher is Ownable, ReentrancyGuard  {
 
     event CompletedRegistration(bytes32 indexed policyHash, address indexed owner);
 
-    mapping(address => mapping(bytes32 => RedeemResult)) public redeemed;
+    mapping(address => mapping(bytes32 => RedeemResult)) private redeemed;
     bool public redeemFrozen = false;
     address public authority;
     IETHRegistrarController private registrarController;
 
-    function getRedeemResult22(address owner, bytes32 value) public view returns (bool, bytes32) {
+    function getRedeemResult(address owner, bytes32 value) public view returns (bool, bytes32) {
         RedeemResult memory result = redeemed[owner][value];
         return (result.isRedeemed, result.domainIdentifier);
     }

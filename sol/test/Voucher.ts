@@ -202,7 +202,7 @@ describe("Voucher", function () {
         const signature = await authority.signMessage(payloadBuffer);
 
 
-        const [preIsRegistered,] = await voucher.getRedeemResult22(acct1.address, policyHash);
+        const [preIsRegistered,] = await voucher.getRedeemResult(acct1.address, policyHash);
         expect(preIsRegistered).to.be.false;
         const tx = await voucher.completeENSRegistration(
             policyHash,
@@ -221,7 +221,7 @@ describe("Voucher", function () {
         const refundAmount = parseEther("0.000000005");
         assertBalancesAfterTransaction(initialVoucherBalance, finalBalances, purchasePrice, refundAmount);
 
-        const [postIsRegistered, postDomainHash] = await voucher.getRedeemResult22(acct1.address, policyHash);
+        const [postIsRegistered, postDomainHash] = await voucher.getRedeemResult(acct1.address, policyHash);
         expect(postIsRegistered).to.be.true;
         const domainHash = solidityPackedKeccak256(['string'], [params.name]);
         expect(postDomainHash).to.be.eq(domainHash);
