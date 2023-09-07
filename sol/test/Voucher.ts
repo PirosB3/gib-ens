@@ -1,25 +1,11 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { MockRegistrarController, MockRegistrarController__factory } from "../typechain-types";
+import { MockRegistrarController } from "../typechain-types";
 import { Voucher } from "../typechain-types/contracts/Voucher.sol";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { AddressLike, BigNumberish, BytesLike, parseEther, solidityPackedKeccak256 } from "ethers";
+import { parseEther, solidityPackedKeccak256 } from "ethers";
 import { randomBytes } from "crypto";
-import { NumberLike } from "@nomicfoundation/hardhat-network-helpers/dist/src/types";
 
-// 1. Define the interface
-// interface DomainParams {
-//     name: string;
-//     owner: AddressLike;
-//     duration: BigNumberish;
-//     secret: Uint8Array;
-//     resolver: AddressLike;
-//     data: BytesLike[]; 
-//     reverseRecord: boolean;
-//     ownerControlledFuses: BigNumberish;
-// }
-
-// 3. Create the constant for default parameters
 const DEFAULT_DOMAIN_PARAMS: Omit<Voucher.ENSParamsStruct, "_owner" | "resolver"> = {
     name: "example.eth",
     duration: 31556952,
@@ -133,7 +119,8 @@ describe("Voucher", function () {
 
         it("Should create an offchain signature from 'authority' account and call 'completeENSRegistration'", async function () {
             // Fund with 1 ETH
-            await voucher.connect(deployer).deposit({ value: parseEther("1") });
+            const initialVoucherBalance = parseEther("1");
+            await voucher.connect(deployer).deposit({ value: initialVoucherBalance });
 
             const [acct1, acct2, ..._] = (await ethers.getSigners()).slice(5);
             const params = generateDomainParams({
@@ -188,6 +175,18 @@ describe("Voucher", function () {
             expect(decoded[5].length).to.eq(params.data.length).to.eq(0);
             expect(decoded[6]).to.eq(params.reverseRecord);
             expect(decoded[7]).to.eq(params.ownerControlledFuses);
+
+            // Check final balances
+            const refundAmount = parseEther("0.000000005");
+            const finalVoucherBalance = await ethers.provider.getBalance(voucher.getAddress());
+            const finalMockControllerBalance = await ethers.provider.getBalance(mockController.getAddress());
+
+            // Validate the changes in balances
+            // Voucher should have sent 'purchasePrice' to MockRegistrarController but received 5 gwei back
+            expect(finalVoucherBalance).to.equal(initialVoucherBalance - purchasePrice + refundAmount);
+
+            // MockRegistrarController should have received 'purchasePrice' but sent 5 gwei back to Voucher
+            expect(finalMockControllerBalance).to.equal(purchasePrice - refundAmount);
         });
 
     });

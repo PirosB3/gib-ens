@@ -66,6 +66,6 @@ contract MockRegistrarController is IETHRegistrarController {
             _reverseRecord,
             _ownerControlledFuses
         );
-        payable(msg.sender).transfer(1 gwei);
+        payable(msg.sender).transfer(5 gwei);
     }
 }
