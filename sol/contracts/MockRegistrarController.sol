@@ -45,6 +45,9 @@ contract MockRegistrarController is IETHRegistrarController {
             );
     }
 
+    function commit(bytes32 commitment) external {
+    }
+
     function register(
         string calldata _name,
         address _owner,

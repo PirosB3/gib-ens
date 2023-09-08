@@ -4,6 +4,16 @@ require('hardhat-deploy');
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 
+
+interface Config {
+  ensController: string;
+}
+
+export const CHAIN_ID_TO_CONFIG = new Map<string, Config>();
+CHAIN_ID_TO_CONFIG.set('5', { ensController: "0xcc5e7db10e65eed1bbd105359e7268aa660f6734", });
+
+
+
 const hardhatPrivateKey = process.env.HARDHAT_PRIVATE_KEY;
 if (hardhatPrivateKey === undefined) {
   throw new Error("HARDHAT_PRIVATE_KEY env variable not set");
