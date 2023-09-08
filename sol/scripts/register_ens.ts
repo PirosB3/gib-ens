@@ -3,8 +3,20 @@ import { deployments, ethers, getNamedSigners, network } from "hardhat";
 import { Voucher, MockRegistrarController } from "../typechain-types";
 import { CHAIN_ID_TO_CONFIG } from "../hardhat.config";
 const { execute } = deployments;
+const readline = require('readline');
 
-
+async function getInput(prompt: string): Promise<string> {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+    return new Promise<string>((resolve) => {
+        rl.question(prompt, (input) => {
+            rl.close();
+            resolve(input);
+        });
+    });
+}
 
 async function getCurrentBlockTimestamp(): Promise<number> {
     const latestBlock = await ethers.provider.getBlock("latest");
@@ -22,15 +34,11 @@ async function generatePayload(voucherAddress: string, commitment: string, polic
     return Buffer.from(hexBytes.slice(2), 'hex');
 }
 
-
-
-// Function to sleep
 function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => {
         setTimeout(resolve, ms);
     });
 }
-
 
 async function main() {
     const { deployer, authority } = await ethers.getNamedSigners();
@@ -38,12 +46,26 @@ async function main() {
     const voucherAddress = voucherDeployment.address;
     const balance = await ethers.provider.getBalance(voucherAddress);
 
+    // Get ENS name and purchase price input from the user
+    const ensName = await getInput("Enter the ENS name to register: ");
+    if (!ensName) {
+        console.error("Invalid ENS name provided. Exiting.");
+        process.exit(1);
+    }
+
+    const inputPurchasePrice = await getInput("Enter the purchase price (in Ether): ");
+    if (!inputPurchasePrice) {
+        console.error("Invalid purchase price provided. Exiting.");
+        process.exit(1);
+    }
+    const purchasePrice = parseEther(inputPurchasePrice);
+
     // Make a new commitment
     const policyHash = Buffer.from(randomBytes(32));
 
     const owner = Wallet.createRandom();
     const params: Voucher.ENSParamsStruct = {
-        name: "testraaa",
+        name: ensName,
         duration: 31536000,
         resolver: '0xd7a4F6473f32aC2Af804B3686AE8F1932bC35750',
         _owner: '0x729170d38dd5449604f35f349fdfcc9ad08257cd',
@@ -52,7 +74,6 @@ async function main() {
         reverseRecord: false,
         ownerControlledFuses: 0,
     };
-    
 
     const config = CHAIN_ID_TO_CONFIG.get(network.config.chainId?.toString() ?? '');
     if (!config) throw new Error("No config for chainId " + network.config.chainId);
@@ -69,8 +90,8 @@ async function main() {
         params.data,
         params.reverseRecord,
         params.ownerControlledFuses
-    )
-    console.log("deployer", commitment)
+    );
+    console.log("Generated Commitment:", commitment);
 
     const result = await mockRegistrarController.commit(commitment);
     console.log(`Submitted commitment: ${commitment}`);
@@ -79,10 +100,8 @@ async function main() {
     // Wait for the commitment to be mined
     await sleep(75 * 1000);
 
-
     const currentBlockTimestamp = await getCurrentBlockTimestamp();
-    const expiry = (currentBlockTimestamp + 3600)
-    const purchasePrice = parseEther("0.01");
+    const expiry = (currentBlockTimestamp + 3600);
     const payloadBuffer = await generatePayload(voucherAddress, commitment, policyHash, purchasePrice, expiry);
     const signature = await authority.signMessage(payloadBuffer);
 
@@ -97,13 +116,7 @@ async function main() {
         signature
     );
     console.log(`[TX Hash] ${redeem.transactionHash}`);
-    // const tx = await voucherDeployment.completeENSRegistration(
-    // );
-    // // wait for tx to be mined
-    // console.log(tx);
-
-
-    // console.log(result);
+    console.log("ENS registration process completed!");
 }
 
 main().catch((error) => {
