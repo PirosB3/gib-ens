@@ -14,11 +14,6 @@ CHAIN_ID_TO_CONFIG.set('5', { ensController: "0xcc5e7db10e65eed1bbd105359e7268aa
 
 
 
-const hardhatPrivateKey = process.env.HARDHAT_PRIVATE_KEY;
-if (hardhatPrivateKey === undefined) {
-  throw new Error("HARDHAT_PRIVATE_KEY env variable not set");
-}
-
 export function getMnemonic(networkName?: string): string {
   if (networkName) {
     const mnemonic = process.env['MNEMONIC_' + networkName.toUpperCase()];
