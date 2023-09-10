@@ -71,4 +71,15 @@ contract MockRegistrarController is IETHRegistrarController {
         );
         payable(msg.sender).transfer(5 gwei);
     }
+
+    function available(string memory _name) external pure returns (bool) {
+        return true;
+    }
+
+    function rentPrice(
+        string memory,
+        uint256
+    ) external view returns (IPriceOracle.Price memory) {
+        return IPriceOracle.Price(0, 0);
+    }
 }
