@@ -1,18 +1,21 @@
 import Image from 'next/image'
-import { getENSService } from '../ensService';
-import { getPolicySetting } from '../policyService';
-import { AlchemyGasManagerService } from '../alchemyService';
+import { getPolicySetting } from '../services/policyService';
+import { AlchemyGasManagerService } from '../services/alchemyService';
+import { kv } from "@vercel/kv";
+import { ENSService } from '@/services/ensService';
+import { getEthersProvider } from '@/services/providerService';
+
 
 export default async function Home() {
+  const datas = await kv.get("Hello");
+  console.log(datas);
 
   const policy = getPolicySetting("ETHNewYork2023");
 
   const gasService = new AlchemyGasManagerService(policy);
   const data = await gasService.getWhitelist();
-  console.log(data);
 
-  const ensService = await getENSService(policy);
-  console.log(ensService);
+  const ensService = await ENSService.fromProvider(getEthersProvider(policy), policy);
 
   const names = [
     "qqs",

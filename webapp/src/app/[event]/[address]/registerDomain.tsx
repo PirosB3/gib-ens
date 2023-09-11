@@ -1,6 +1,6 @@
 "use client"
 
-import { DomainAvailabilityResult, DomainAvailable } from "@/ensService";
+import { VoucherAvailabilityResult, VoucherAvailable } from "@/base/types";
 import { useDebounce } from "@uidotdev/usehooks"
 import { useState } from "react"
 import { useMutation, useQuery } from "react-query"
@@ -14,7 +14,7 @@ export function RegisterDomain(props: RegisterDomainProps) {
     const [domain, setDomain] = useState("")
     const debouncedDomain = useDebounce(domain, 500);
 
-    const { isLoading, data } = useQuery<DomainAvailabilityResult>({
+    const { isLoading, data } = useQuery<VoucherAvailabilityResult>({
         queryKey: ["domainCheck", debouncedDomain, props.event, props.address],
         queryFn: async () => {
             const response = await fetch(`/${props.event}/${props.address}/${debouncedDomain}/check`);
@@ -23,15 +23,16 @@ export function RegisterDomain(props: RegisterDomainProps) {
         enabled: !!debouncedDomain,
     });
 
-    const mutation = useMutation<any, any, DomainAvailable>({
+    const mutation = useMutation<any, any, VoucherAvailable>({
         mutationKey: ["domainRegister", data, props.event, props.address],
-        mutationFn: async (domainAvailable) => {
-            if (!domainAvailable?.isAvailable) throw new Error("Domain is not available");
+        mutationFn: async (voucherAvailable) => {
+            if (!voucherAvailable?.isAvailable) throw new Error("Domain is not available");
             
-            const response = await fetch(`/${props.event}/${props.address}/${domainAvailable.purchaseInfo.normalizedDomainName}/register`, {
+            const { owner, policyId } = voucherAvailable.voucher;
+            const { normalizedDomainName } = voucherAvailable.ens.purchaseInfo;
+            const response = await fetch(`/${policyId}/${owner}/${normalizedDomainName}/register`, {
                 method: "POST",
             });
-
         },
     })
 
@@ -41,19 +42,23 @@ export function RegisterDomain(props: RegisterDomainProps) {
         mutation.mutate(data);
     }
 
-    const displayName = data?.isAvailable ? data.purchaseInfo.normalizedDomainName : debouncedDomain;
+    const displayName = data?.isAvailable ? data.ens.purchaseInfo.normalizedDomainName : debouncedDomain;
     return (
         <form action="#" method="post">
             <div className="mb-5">
                 <label className="block text-sm font-medium text-gray-700">Domain name</label>
                 <input disabled={mutation.isLoading} onChange={(e) => setDomain(e.target.value)} type="text" required className="mt-2 p-2 w-full border rounded-md" value={domain} />
             </div>
-            <button onClick={(e) => onFormSubmit(e)} disabled={data?.isAvailable !== true || mutation.isLoading} type="submit" className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700">
-                Register {displayName}.eth
-            </button>
+            {
+                data?.isAvailable ? (
+                    <button onClick={(e) => onFormSubmit(e)} disabled={data?.isAvailable !== true || mutation.isLoading} type="submit" className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 mb-2">
+                        Register {displayName}.eth
+                    </button>
+                ): undefined
+            }
             <div>
-                {isLoading ? <div>Loading...</div> : null}
-                { data ? <div>{data.isAvailable ? "Available" : "Not available"}</div> : null }
+                {isLoading ? <div>⌛️ Loading...</div> : null}
+                { data ? <div>{data.isAvailable ? "✅ Available" : "❌ Not available"}</div> : null }
             </div>
         </form>
     )

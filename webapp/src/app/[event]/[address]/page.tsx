@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
-import { getPolicySettingOrRedirect } from "../../../policyService";
+import { getPolicySettingOrRedirect } from "../../../services/policyService";
 import { z } from "zod";
-import { AlchemyGasManagerService } from "@/alchemyService";
+import { AlchemyGasManagerService } from "@/services/alchemyService";
 import { RegisterDomain } from "./registerDomain";
 import { Frontend } from "./frontend";
-import { getEthersProvider } from "@/providerService";
+import { getEthersProvider } from "@/services/providerService";
 
 
 interface HomeProps {

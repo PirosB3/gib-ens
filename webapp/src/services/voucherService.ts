@@ -1,13 +1,11 @@
 import { Voucher } from "@gib-ens/sol/typechain-types";
 import VoucherABI from "@gib-ens/sol/artifacts/contracts/Voucher.sol/Voucher.json";
 import { BigNumberish, Contract, Provider, ethers, solidityPackedKeccak256 } from "ethers";
-import { DOMAIN_DURATION, DomainAvailabilityResult, DomainAvailable, ENSService } from "./ensService";
+import { ENSService } from "./ensService";
 import { Wallet } from "ethers";
+import { IService, TxForUserOperation, VoucherAvailabilityResult, VoucherAvailable } from "@/base/types";
+import { PolicyConfig } from "./policyService";
 
-export const CHAIN_TO_VOUCHER_ADDRESS: Map<string, string> = new Map();
-CHAIN_TO_VOUCHER_ADDRESS.set('5', '0xc1366CcB4190267720EEBf7ccb0064C91284cad6');
-
-const TRANSACTION_EXPIRATION_TTL = 10 * 60;
 
 interface GetDomainAvailabilityParams {
     owner: string;
@@ -15,27 +13,24 @@ interface GetDomainAvailabilityParams {
     policyId: string;
 }
 
-export class VoucherService {
-    public static async fromEnsService(service: ENSService): Promise<VoucherService> {
-        const provider = service.getProvider();
-        const network = await provider.getNetwork();
-        const controllerAddress = CHAIN_TO_VOUCHER_ADDRESS.get(network.chainId.toString());
-        if (!controllerAddress) {
-            throw new Error(`No controller address for chain ${network.chainId}`);
-        }
-        return new VoucherService(controllerAddress, service);
-    }
+export class VoucherService implements IService {
 
     private readonly voucher: Voucher;
     private readonly $authority: Wallet;
     constructor(
-        controllerAddress: string,
         private readonly ens: ENSService,
-        private readonly duration: number = DOMAIN_DURATION,
-        private readonly transactionExpirationTtl: number = TRANSACTION_EXPIRATION_TTL,
     ) {
-        this.voucher = new Contract(controllerAddress, VoucherABI.abi, ens.getProvider()) as any as Voucher;
-        this.$authority = new Wallet(ens.getConfig().sponsorshipContractAuthorityPk, ens.getProvider());
+        const config = ens.getConfig();
+        const provider = ens.getProvider();
+        this.voucher = new Contract(config.voucherContractAddress, VoucherABI.abi, provider) as any as Voucher;
+        this.$authority = new Wallet(config.sponsorshipContractAuthorityPk, provider);
+    }
+
+    getConfig(): PolicyConfig {
+        return this.ens.getConfig();
+    }
+    getProvider(): Provider {
+        return this.ens.getProvider();
     }
 
     public getPolicyHash(policy: string): string {
@@ -49,16 +44,15 @@ export class VoucherService {
     }
 
     async getCompleteENSRegistrationTransaction(
-        params: GetDomainAvailabilityParams,
-        domainAvailabilityResult: DomainAvailable,
+        params: VoucherAvailable,
         ensParamsStruct: Voucher.ENSParamsStruct
-    ): Promise<Pick<ethers.ContractTransaction, "data" | "value" | "to" | "gasLimit">> {
+    ): Promise<TxForUserOperation> {
         const commitmentHash = await this.ens.getCommitmentHash(ensParamsStruct);
-        const policyHash = Buffer.from(this.getPolicyHash(params.policyId).split('0x')[1], 'hex');
+        const policyHash = Buffer.from(this.getPolicyHash(params.voucher.policyId).split('0x')[1], 'hex');
 
-        const maxPrice = domainAvailabilityResult.purchaseInfo.price;
+        const maxPrice = params.ens.purchaseInfo.price;
 
-        const expirationWindow = await this.getCurrentBlockTimestamp() + this.transactionExpirationTtl;
+        const expirationWindow = await this.getCurrentBlockTimestamp() + this.getConfig().voucherValiditySeconds;
         const payloadBuffer = this.generatePayload(await this.voucher.getAddress(), commitmentHash, policyHash, maxPrice, expirationWindow);
         const signature = await this.$authority.signMessage(payloadBuffer);
 
@@ -71,21 +65,21 @@ export class VoucherService {
         return { to, data, value, gasLimit };
     }
 
-    public async createTransactions(params: GetDomainAvailabilityParams, domainAvailabilityResult: DomainAvailable): Promise<void> {
+    public async createTransactions(params: VoucherAvailable): Promise<TxForUserOperation[]> {
         const ensParamsStruct = this.ens.getEnsParamsStruct({
-            _owner: params.owner,
-            name: domainAvailabilityResult.purchaseInfo.normalizedDomainName,
-            duration: domainAvailabilityResult.purchaseInfo.duration,
+            _owner: params.voucher.owner,
+            name: params.ens.purchaseInfo.normalizedDomainName,
+            duration: params.ens.purchaseInfo.duration,
         });
         const commitTransaction = await this.ens.getCommitTransaction(ensParamsStruct);
-        const completeENSRegistrationTransaction = await this.getCompleteENSRegistrationTransaction(params, domainAvailabilityResult, ensParamsStruct);
+        const completeENSRegistrationTransaction = await this.getCompleteENSRegistrationTransaction(params, ensParamsStruct);
 
         const allTransactions = [commitTransaction, completeENSRegistrationTransaction];
-        console.log(allTransactions);
+        return allTransactions;
     }
 
-    async getDomainAvailability(params: GetDomainAvailabilityParams): Promise<DomainAvailabilityResult> {
-        const availability = await this.ens.getDomainAvailability(params.domain, this.duration);
+    async getDomainAvailability(params: GetDomainAvailabilityParams): Promise<VoucherAvailabilityResult> {
+        const availability = await this.ens.getDomainAvailability(params.domain);
         if (!availability.isAvailable) {
             return availability;
         }
@@ -97,7 +91,14 @@ export class VoucherService {
                 reason: "alreadyRegistered",
             }
         }
-        return availability;
+        return {
+            isAvailable: true,
+            ens: availability,
+            voucher: {
+                policyId: params.policyId,
+                owner: params.owner,
+            }
+        };
     }
 
     async getCurrentBlockTimestamp(): Promise<number> {

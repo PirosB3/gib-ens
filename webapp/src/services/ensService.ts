@@ -1,52 +1,19 @@
-import { BigNumberish, ContractTransaction, Provider, ensNormalize, parseEther, randomBytes } from "ethers";
-import { getEthersProvider } from "./providerService";
+import { ContractTransaction, Provider, ensNormalize, parseEther, randomBytes } from "ethers";
 import IETHRegistrarControllerABI from "@gib-ens/sol/artifacts/contracts/interfaces/IETHRegistrarController.sol/IETHRegistrarController.json";
 import { IETHRegistrarController, Voucher } from "@gib-ens/sol/typechain-types";
 import { Contract } from "ethers";
 import { PolicyConfig } from "./policyService";
 import { ens_tokenize } from "@adraffy/ens-normalize";
+import { ENSAvailabilityResult, IService, TxForUserOperation } from "@/base/types";
 
-interface Config {
-    controllerAddress: string;
-    resolverAddress: string;
-}
-
-export const CHAIN_TO_CONFIG_ADDRESS: Map<string, Config> = new Map();
-CHAIN_TO_CONFIG_ADDRESS.set('5', {
-    controllerAddress: '0xcc5e7db10e65eed1bbd105359e7268aa660f6734',
-    resolverAddress: '0xd7a4F6473f32aC2Af804B3686AE8F1932bC35750',
-});
-export const DOMAIN_DURATION = 365 * 24 * 60 * 60;
-
-export interface DomainAvailable {
-    isAvailable: true;
-    purchaseInfo: {
-        normalizedDomainName: string;
-        price: string;
-        duration: number;
-    }
-}
-
-export interface DomainUnavailable {
-    isAvailable: false;
-    reason: "unavailable" | "expensive" | "invalid" | "alreadyRegistered"
-}
-
-export type DomainAvailabilityResult = DomainAvailable | DomainUnavailable;
-
-export class ENSService {
+export class ENSService implements IService {
     public static async fromProvider(provider: Provider, config: PolicyConfig): Promise<ENSService> {
-        const network = await provider.getNetwork();
-        const ensConfig = CHAIN_TO_CONFIG_ADDRESS.get(network.chainId.toString());
-        if (!ensConfig) {
-            throw new Error(`No controller address for chain ${network.chainId}`);
-        }
-        return new ENSService(ensConfig, provider, config);
+        return new ENSService(provider, config);
     }
 
     private readonly controller: IETHRegistrarController;
-    constructor(private readonly ensConfig: Config, private readonly provider: Provider, private readonly config: PolicyConfig) {
-        this.controller = new Contract(ensConfig.controllerAddress, IETHRegistrarControllerABI.abi, provider) as any as IETHRegistrarController;
+    constructor(private readonly provider: Provider, private readonly config: PolicyConfig) {
+        this.controller = new Contract(config.ensControllerContractAddress, IETHRegistrarControllerABI.abi, provider) as any as IETHRegistrarController;
     }
 
     getProvider(): Provider {
@@ -71,7 +38,7 @@ export class ENSService {
         return commitment;
     }
 
-    async getCommitTransaction(domain: Voucher.ENSParamsStruct): Promise<Pick<ContractTransaction, "to" | "data" | "value" | "gasLimit">> {
+    async getCommitTransaction(domain: Voucher.ENSParamsStruct): Promise<TxForUserOperation> {
         const commitmentHash = await this.getCommitmentHash(domain);
         const tx = await this.controller.commit.populateTransaction(commitmentHash, { gasLimit: 100_000 });
         const { to, data, value, gasLimit } = tx;
@@ -115,7 +82,7 @@ export class ENSService {
         return { isValid: true, normalized };
     }
 
-    async getDomainAvailability(domain: string, duration: number = DOMAIN_DURATION): Promise<DomainAvailabilityResult> {
+    async getDomainAvailability(domain: string): Promise<ENSAvailabilityResult> {
         const normalizedResult = this.getNormalizedDomain(domain);
         if (!normalizedResult.isValid) return { isAvailable: false, reason: "invalid" };
 
@@ -123,7 +90,7 @@ export class ENSService {
         const availability = await this.controller.available(normalized);
         if (!availability) return { isAvailable: false, reason: "unavailable" };
 
-        const prices = await this.controller.rentPrice(normalized, duration);
+        const prices = await this.controller.rentPrice(normalized, this.config.registerDomainForSeconds);
         const price = prices.base + prices.premium;
         
         const ethToWei = parseEther(this.config.maxPurchasePriceEth.toString());
@@ -133,15 +100,9 @@ export class ENSService {
             isAvailable: true,
             purchaseInfo: {
                 normalizedDomainName: normalized,
-                duration,
+                duration: this.config.registerDomainForSeconds,
                 price: price.toString(),
             }
         };
     }
-}
-
-export async function getENSService(config: PolicyConfig): Promise<ENSService> {
-    const provider = getEthersProvider(config)
-    const service = await ENSService.fromProvider(provider, config);
-    return service;
 }

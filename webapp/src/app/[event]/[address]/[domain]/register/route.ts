@@ -1,8 +1,8 @@
-import { enforceWhitelist } from "@/alchemyService";
-import { ENSService, getENSService } from "@/ensService";
-import { getPolicySettingOrRedirect } from "@/policyService";
-import { getEthersProvider } from "@/providerService";
-import { VoucherService } from "@/voucherService";
+import { enforceWhitelist } from "@/services/alchemyService";
+import { ENSService } from "@/services/ensService";
+import { getPolicySettingOrRedirect } from "@/services/policyService";
+import { getEthersProvider } from "@/services/providerService";
+import { VoucherService } from "@/services/voucherService";
 import { NextRequest, NextResponse } from "next/server";
 
 interface Props {
@@ -19,7 +19,7 @@ export async function POST(_request: NextRequest, props: Props): Promise<NextRes
 
     const provider = getEthersProvider(config);
     const ens = await ENSService.fromProvider(provider, config);
-    const voucher = await VoucherService.fromEnsService(ens);
+    const voucher =  new VoucherService(ens);
     const availability = await voucher.getDomainAvailability({
         domain: props.params.domain,
         owner: props.params.address,
@@ -31,12 +31,8 @@ export async function POST(_request: NextRequest, props: Props): Promise<NextRes
         });
     }
 
-    await voucher.createTransactions({
-        domain: availability.purchaseInfo.normalizedDomainName,
-        owner: props.params.address,
-        policyId: config.policyId,
-    }, availability)
-
+    const transactions = await voucher.createTransactions(availability);
+    console.log(transactions);
     return NextResponse.json({
         ok: true,
     })

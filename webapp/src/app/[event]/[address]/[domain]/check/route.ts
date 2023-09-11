@@ -1,8 +1,8 @@
-import { enforceWhitelist } from "@/alchemyService";
-import { getENSService } from "@/ensService";
-import { getPolicySettingOrRedirect } from "@/policyService";
-import { getEthersProvider } from "@/providerService";
-import { VoucherService } from "@/voucherService";
+import { enforceWhitelist } from "@/services/alchemyService";
+import { ENSService } from "@/services/ensService";
+import { getPolicySettingOrRedirect } from "@/services/policyService";
+import { getEthersProvider } from "@/services/providerService";
+import { VoucherService } from "@/services/voucherService";
 import { NextRequest, NextResponse } from "next/server";
 
 interface Props {
@@ -13,12 +13,12 @@ interface Props {
     }
 }
 
-export async function GET(request: NextRequest, props: Props) {
+export async function GET(_request: NextRequest, props: Props) {
     const config = getPolicySettingOrRedirect(props.params.event);
     await enforceWhitelist(config, props.params.address);
 
-    const ens = await getENSService(config)
-    const voucher = await VoucherService.fromEnsService(ens);
+    const ens = await ENSService.fromProvider(getEthersProvider(config), config);
+    const voucher = await new VoucherService(ens);
     const availability = await voucher.getDomainAvailability({
         domain: props.params.domain,
         owner: props.params.address,
