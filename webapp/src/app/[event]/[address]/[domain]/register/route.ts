@@ -1,5 +1,5 @@
 import { enforceWhitelist } from "@/alchemyService";
-import { getENSService } from "@/ensService";
+import { ENSService, getENSService } from "@/ensService";
 import { getPolicySettingOrRedirect } from "@/policyService";
 import { getEthersProvider } from "@/providerService";
 import { VoucherService } from "@/voucherService";
@@ -13,11 +13,12 @@ interface Props {
     }
 }
 
-export async function POST(request: NextRequest, props: Props) {
+export async function POST(_request: NextRequest, props: Props): Promise<NextResponse> {
     const config = getPolicySettingOrRedirect(props.params.event);
     await enforceWhitelist(config, props.params.address);
 
-    const ens = await getENSService(config)
+    const provider = getEthersProvider(config);
+    const ens = await ENSService.fromProvider(provider, config);
     const voucher = await VoucherService.fromEnsService(ens);
     const availability = await voucher.getDomainAvailability({
         domain: props.params.domain,

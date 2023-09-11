@@ -111,7 +111,7 @@ export class ENSService {
             return { isValid: false }
         }
         const numChars = firstToken.cps.length;
-        if (numChars < 3) return { isValid: false };
+        if (numChars < 3 || numChars > 26) return { isValid: false };
         return { isValid: true, normalized };
     }
 
