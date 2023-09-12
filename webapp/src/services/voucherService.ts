@@ -3,7 +3,7 @@ import VoucherABI from "@gib-ens/sol/artifacts/contracts/Voucher.sol/Voucher.jso
 import { BigNumberish, Contract, Provider, ethers, solidityPackedKeccak256 } from "ethers";
 import { ENSService } from "./ensService";
 import { Wallet } from "ethers";
-import { IService, TxForUserOperation, VoucherAvailabilityResult, VoucherAvailable } from "@/base/types";
+import { IService, TxAndType, TxForUserOperation, VoucherAvailabilityResult, VoucherAvailable } from "@/base/types";
 import { PolicyConfig } from "./policyService";
 
 
@@ -46,7 +46,7 @@ export class VoucherService implements IService {
     async getCompleteENSRegistrationTransaction(
         params: VoucherAvailable,
         ensParamsStruct: Voucher.ENSParamsStruct
-    ): Promise<TxForUserOperation> {
+    ): Promise<TxAndType> {
         const commitmentHash = await this.ens.getCommitmentHash(ensParamsStruct);
         const policyHash = Buffer.from(this.getPolicyHash(params.voucher.policyId).split('0x')[1], 'hex');
 
@@ -62,10 +62,13 @@ export class VoucherService implements IService {
         );
         
         const { to, data, value, gasLimit } = tx;
-        return { to, data, value, gasLimit };
+        return {
+            type: 'completeEnsRegistration',
+            tx: { to, data, value, gasLimit },
+        }
     }
 
-    public async createTransactions(params: VoucherAvailable): Promise<TxForUserOperation[]> {
+    public async createTransactions(params: VoucherAvailable): Promise<TxAndType[]> {
         const ensParamsStruct = this.ens.getEnsParamsStruct({
             _owner: params.voucher.owner,
             name: params.ens.purchaseInfo.normalizedDomainName,

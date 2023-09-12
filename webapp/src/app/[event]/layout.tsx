@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
-import { Frontend } from './[address]/frontend'
+import { Frontend } from './frontend'
+import { ConnectButton } from '@rainbow-me/rainbowkit'
+import '@rainbow-me/rainbowkit/styles.css';
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -17,14 +19,14 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-gray-100`}>
-
-        <nav className="bg-blue-600 p-4 text-white">
-          <div className="container mx-auto">
-            <h1 className="text-2xl font-semibold">ETHGlobal Redeem Tool</h1>
-          </div>
-        </nav>
+      <body className={inter.className}>
         <Frontend>
+          <nav className="bg-blue-600 p-4 text-white">
+            <div className="container mx-auto">
+              <h1 className="text-2xl font-semibold">ETHGlobal Redeem Tool</h1>
+              <ConnectButton />
+            </div>
+          </nav>
           {children}
         </Frontend>
       </body>

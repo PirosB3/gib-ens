@@ -4,7 +4,7 @@ import { IETHRegistrarController, Voucher } from "@gib-ens/sol/typechain-types";
 import { Contract } from "ethers";
 import { PolicyConfig } from "./policyService";
 import { ens_tokenize } from "@adraffy/ens-normalize";
-import { ENSAvailabilityResult, IService, TxForUserOperation } from "@/base/types";
+import { ENSAvailabilityResult, IService, TxAndType, TxForUserOperation } from "@/base/types";
 
 export class ENSService implements IService {
     public static async fromProvider(provider: Provider, config: PolicyConfig): Promise<ENSService> {
@@ -38,11 +38,14 @@ export class ENSService implements IService {
         return commitment;
     }
 
-    async getCommitTransaction(domain: Voucher.ENSParamsStruct): Promise<TxForUserOperation> {
+    async getCommitTransaction(domain: Voucher.ENSParamsStruct): Promise<TxAndType> {
         const commitmentHash = await this.getCommitmentHash(domain);
         const tx = await this.controller.commit.populateTransaction(commitmentHash, { gasLimit: 100_000 });
         const { to, data, value, gasLimit } = tx;
-        return { to, data, value, gasLimit };
+        return {
+            type: 'ensCommitment',
+            tx: { to, data, value, gasLimit },
+        }
     }
 
     public getEnsParamsStruct(params: Pick<Voucher.ENSParamsStruct, "name" | "_owner" | "duration">): Voucher.ENSParamsStruct {

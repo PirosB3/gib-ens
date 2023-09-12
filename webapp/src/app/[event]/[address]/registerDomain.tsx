@@ -2,8 +2,12 @@
 
 import { VoucherAvailabilityResult, VoucherAvailable } from "@/base/types";
 import { useDebounce } from "@uidotdev/usehooks"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useMutation, useQuery } from "react-query"
+import { useAccount, useWalletClient } from "wagmi";
+import { redirect } from "next/navigation";
+import { RedeemJobSchema } from "@/services/redeemService";
+
 
 interface RegisterDomainProps {
     address: string;
@@ -13,6 +17,18 @@ interface RegisterDomainProps {
 export function RegisterDomain(props: RegisterDomainProps) {
     const [domain, setDomain] = useState("")
     const debouncedDomain = useDebounce(domain, 500);
+    const { address, isDisconnected } = useAccount();
+
+    useEffect(() => {
+        if (isDisconnected) {
+            redirect(`/${props.event}`)
+        }
+
+        if (!address) return;
+        if (address.toLowerCase() !== props.address.toLowerCase()) {
+            redirect(`/${props.event}/${address}`)
+        }
+    }, [props.event, address, isDisconnected])
 
     const { isLoading, data } = useQuery<VoucherAvailabilityResult>({
         queryKey: ["domainCheck", debouncedDomain, props.event, props.address],
@@ -23,7 +39,7 @@ export function RegisterDomain(props: RegisterDomainProps) {
         enabled: !!debouncedDomain,
     });
 
-    const mutation = useMutation<any, any, VoucherAvailable>({
+    const mutation = useMutation<RedeemJobSchema, any, VoucherAvailable>({
         mutationKey: ["domainRegister", data, props.event, props.address],
         mutationFn: async (voucherAvailable) => {
             if (!voucherAvailable?.isAvailable) throw new Error("Domain is not available");
@@ -33,6 +49,8 @@ export function RegisterDomain(props: RegisterDomainProps) {
             const response = await fetch(`/${policyId}/${owner}/${normalizedDomainName}/register`, {
                 method: "POST",
             });
+            const json: RedeemJobSchema = await response.json();
+            return json;
         },
     })
 
@@ -51,7 +69,7 @@ export function RegisterDomain(props: RegisterDomainProps) {
             </div>
             {
                 data?.isAvailable ? (
-                    <button onClick={(e) => onFormSubmit(e)} disabled={data?.isAvailable !== true || mutation.isLoading} type="submit" className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 mb-2">
+                    <button onClick={(e) => onFormSubmit(e)} disabled={data?.isAvailable !== true || mutation.isLoading} type="submit" className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 my-2">
                         Register {displayName}.eth
                     </button>
                 ): undefined

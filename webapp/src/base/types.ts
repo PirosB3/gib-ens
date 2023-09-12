@@ -43,3 +43,8 @@ export interface VoucherUnavailable {
 export type VoucherAvailabilityResult = VoucherAvailable | VoucherUnavailable;
 
 export type TxForUserOperation = Pick<ethers.ContractTransaction, "data" | "value" | "to" | "gasLimit">;
+
+export interface TxAndType {
+    type: 'ensCommitment' | 'completeEnsRegistration';
+    tx: TxForUserOperation;
+}
