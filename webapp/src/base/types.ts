@@ -38,7 +38,13 @@ export const UserOperationZod = z.object({
     signature: EthereumBytes,
 });
 
+export const UserOperationAndHashBundle = z.object({
+    userOp: UserOperationZod,
+    hash: EthereumBytes32,
+});
+
 export type UserOperationStruct = z.infer<typeof UserOperationZod>;
+export type UserOperationAndHash = z.infer<typeof UserOperationAndHashBundle>;
 
 
 

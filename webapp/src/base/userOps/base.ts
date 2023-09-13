@@ -1,5 +1,5 @@
 import { ENSParamsZod } from "@/services/ensService";
-import { EthereumAddress, UserOperationStruct } from "../types";
+import { EthereumAddress, UserOperationAndHash, UserOperationStruct } from "../types";
 import { z } from 'zod';
 import { ServiceFactory } from "@/services/serviceFactory";
 import { RedeemOperation } from "./redeem";
@@ -9,7 +9,8 @@ export type OperationStatus = 'ready' | 'complete' | 'pending';
 
 export interface ReadyOperation {
     status: 'ready',
-    userOps: UserOperationStruct,
+    userOp: UserOperationStruct,
+    hash: string,
 }
 
 export interface PendingOperation {

@@ -4,12 +4,12 @@ import { PolicyConfig, getPolicySetting } from "./policyService";
 import { getEthersProvider } from "./providerService";
 import { RedeemService } from "./redeemService";
 import { VoucherService } from "./voucherService";
-import { Provider } from "ethers";
 import { UserOperationService } from "./userOperationService";
+import { AlchemyProvider } from "ethers";
 
 export class ServiceFactory {
     private readonly config: PolicyConfig;
-    private provider: Provider;
+    private provider: AlchemyProvider;
     private ens: ENSService | undefined;
 
     constructor(private readonly event: string) {
@@ -31,7 +31,7 @@ export class ServiceFactory {
     }
 
     async getAlchemyGasManagerService() {
-        return new AlchemyGasManagerService(this.config);
+        return new AlchemyGasManagerService(this.config, this.provider);
     }
 
     async getVoucherService() {

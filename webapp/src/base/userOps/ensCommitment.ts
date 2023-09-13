@@ -1,7 +1,7 @@
 import { ENSService } from "@/services/ensService";
 import { UserOperationService } from "@/services/userOperationService";
 import { kv } from "@vercel/kv";
-import { UserOperationZod } from "../types";
+import { UserOperationAndHashBundle } from "../types";
 import { DomainRedeemOperation, Operation, Operator } from "./base";
 
 export class EnsCommitmentOperation implements Operator {
@@ -20,10 +20,11 @@ export class EnsCommitmentOperation implements Operator {
 
         const commitUserOp = await kv.get(`ensCommitment:${commitment}`);
         if (commitUserOp) {
-            const parsed = UserOperationZod.parse(commitUserOp);
+            const {hash, userOp } = UserOperationAndHashBundle.parse(commitUserOp);
             return {
                 status: 'ready',
-                userOps: parsed,
+                userOp,
+                hash,
             }
         }
 
@@ -34,9 +35,11 @@ export class EnsCommitmentOperation implements Operator {
         if (isSuccessful === 0) {
             throw new Error('Could not set ensCommitment in KV');
         }
+        const { hash, userOp } = userOps;
         return {
             status: 'ready',
-            userOps,
+            userOp,
+            hash,
         }
     }
 

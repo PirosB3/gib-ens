@@ -1,7 +1,7 @@
 import { ENSParamsZod, ENSService } from "@/services/ensService";
 import { DomainRedeemOperation, Operation, Operator } from "./base";
 import { z } from 'zod';
-import { EthereumAddress, UserOperationZod } from "../types";
+import { EthereumAddress, UserOperationAndHashBundle, UserOperationZod } from "../types";
 import { UserOperationService } from "@/services/userOperationService";
 import { VoucherService } from "@/services/voucherService";
 import { kv } from "@vercel/kv";
@@ -38,21 +38,26 @@ export class RedeemOperation implements Operator {
 
         const redeemUserOp = await kv.get(`redeem:${commitment}`);
         if (redeemUserOp) {
-            const parsed = UserOperationZod.parse(redeemUserOp);
+            const parsed = UserOperationAndHashBundle.parse(redeemUserOp);
+            const { hash, userOp } = parsed;
             return {
                 status: 'ready',
-                userOps: parsed,
+                userOp,
+                hash,
             }
         }
         const { tx } = await this.voucher.getCompleteENSRegistrationTransaction(domainAvailability, redeem.ens);
+        console.log(tx);
         const userOps = await this.userOp.getUserOperation(redeem.params.owner, tx);
         const isSuccessful = await kv.setnx(`redeem:${commitment}`, JSON.stringify(userOps));
         if (isSuccessful === 0) {
             throw new Error('Could not set redeem in KV');
         }
+        const { hash, userOp } = userOps;
         return {
             status: 'ready',
-            userOps,
+            userOp,
+            hash,
         }
 
     }

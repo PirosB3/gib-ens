@@ -3,6 +3,7 @@ import { PolicyConfig } from "./policyService"
 import { UserOperationStruct, UserOperationZod } from "@/base/types"
 import { ENTRYPOINT_ADDRESS } from "./userOperationService"
 import { AlchemyProvider, Network } from "ethers"
+import { FetchRequest } from "ethers"
 
 export interface PolicyRoot {
     data: Data
@@ -45,6 +46,19 @@ interface AlchemySponsorTransactionResponse {
     };
 }
 
+// interface AlchemyUserOpReceiptResponse {
+//     jsonrpc: string;
+//     id: number;
+//     result: {
+//         maxPriorityFeePerGas: string;
+//         maxFeePerGas: string;
+//         paymasterAndData: string;
+//         verificationGasLimit: string;
+//         callGasLimit: string;
+//         preVerificationGas: string;
+//     };
+// }
+
 // sleep function
 function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -53,43 +67,28 @@ function sleep(ms: number): Promise<void> {
 
 export class AlchemyGasManagerService {
     private readonly rpcUrl: string
-    constructor(private readonly config: PolicyConfig) {
+    constructor(private readonly config: PolicyConfig, private readonly provider: AlchemyProvider) {
         this.rpcUrl = `https://manage.g.alchemy.com/api/gasManager/policy/${config.alchemyGasPolicy}`;
     }
 
     public async requestGasAndPaymasterAndData(
         userOp: Pick<UserOperationStruct, "callData" | "nonce" | "initCode" | "sender">
     ): Promise<UserOperationStruct> {
-        await sleep(5000);
         const { callData, nonce, initCode, sender } = userOp;
-        const options = {
-            method: 'POST',
-            headers: { accept: 'application/json', 'content-type': 'application/json' },
-            body: JSON.stringify({
-                id: 1,
-                jsonrpc: '2.0',
-                method: 'alchemy_requestGasAndPaymasterAndData',
-                params: [
-                    {
-                        policyId: this.config.alchemyGasPolicy,
-                        entryPoint: ENTRYPOINT_ADDRESS,
-                        dummySignature: '0xe8fe34b166b64d118dccf44c7198648127bf8a76a48a042862321af6058026d276ca6abb4ed4b60ea265d1e57e33840d7466de75e13f072bbd3b7e64387eebfe1b',
-                        userOperation: {
-                            sender,
-                            nonce,
-                            initCode,
-                            callData,
-                        }
-                    }
-                ]
-            })
-        };
-        const network = Network.from(this.config.networkId);
-        const req = AlchemyProvider.getRequest(network, this.config.alchemyApiKey);
-        const response = await fetch(req.url, options);
-        const json: AlchemySponsorTransactionResponse = await response.json();
-        console.log('json', json);
-        const { maxFeePerGas, maxPriorityFeePerGas, paymasterAndData, verificationGasLimit, callGasLimit, preVerificationGas } = json.result;
+        const response = await this.provider.send('alchemy_requestGasAndPaymasterAndData', [
+            {
+                policyId: this.config.alchemyGasPolicy,
+                entryPoint: ENTRYPOINT_ADDRESS,
+                dummySignature: '0xe8fe34b166b64d118dccf44c7198648127bf8a76a48a042862321af6058026d276ca6abb4ed4b60ea265d1e57e33840d7466de75e13f072bbd3b7e64387eebfe1b',
+                userOperation: {
+                    sender,
+                    nonce,
+                    initCode,
+                    callData,
+                }
+            }
+        ])
+        const { maxFeePerGas, maxPriorityFeePerGas, paymasterAndData, verificationGasLimit, callGasLimit, preVerificationGas } = response;
         return UserOperationZod.parse({
             sender,
             nonce,
@@ -120,12 +119,4 @@ export class AlchemyGasManagerService {
         }
         return new Set(data.policy.rules.senderAllowlist.map((address: string) => address.toLowerCase()));
     }
-}
-
-export async function enforceWhitelist(config: PolicyConfig, address: string, redirectTo='/') {
-    const service = new AlchemyGasManagerService(config);
-    const whitelist = await service.getWhitelist();
-    if (!whitelist.has(address.toLowerCase())) {
-        redirect(redirectTo)
-    };
 }

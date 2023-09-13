@@ -14,11 +14,10 @@ const EXPIRE_SECONDS = 30 * 60;
 
 export class RedeemService implements IService {
     public static fromVoucherAndENS(voucher: VoucherService, ens: ENSService): RedeemService {
-        return new RedeemService(voucher, ens, ens.getProvider(), ens.getConfig());
+        return new RedeemService(ens, ens.getProvider(), ens.getConfig());
     }
 
     constructor(
-        private readonly voucher: VoucherService,
         private readonly ens: ENSService,
         private readonly provider: Provider,
         private readonly config: PolicyConfig,
@@ -48,8 +47,8 @@ export class RedeemService implements IService {
         return DomainRedeemOperationSchema.parse(value);
     }
 
-    public async getCurrentRedeemForUser(owner: string, policyId: string): Promise<DomainRedeemOperation | null> {
-        const key = this.makeKey(owner, policyId);
+    public async getCurrentRedeemForUser(owner: string): Promise<DomainRedeemOperation | null> {
+        const key = this.makeKey(owner, this.config.policyId);
         const value = await kv.get<object>(key);
         if (!value) {
             return null;
