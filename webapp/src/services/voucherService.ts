@@ -1,9 +1,9 @@
 import { Voucher } from "@gib-ens/sol/typechain-types";
 import VoucherABI from "@gib-ens/sol/artifacts/contracts/Voucher.sol/Voucher.json";
-import { BigNumberish, Contract, Provider, ethers, solidityPackedKeccak256 } from "ethers";
+import { BigNumberish, Contract, Provider, solidityPackedKeccak256 } from "ethers";
 import { ENSService } from "./ensService";
 import { Wallet } from "ethers";
-import { IService, TxAndType, TxForUserOperation, VoucherAvailabilityResult, VoucherAvailable } from "@/base/types";
+import { IService, TxAndType, VoucherAvailabilityResult, VoucherAvailable } from "@/base/types";
 import { PolicyConfig } from "./policyService";
 
 
@@ -66,19 +66,6 @@ export class VoucherService implements IService {
             type: 'completeEnsRegistration',
             tx: { to, data, value, gasLimit },
         }
-    }
-
-    public async createTransactions(params: VoucherAvailable): Promise<TxAndType[]> {
-        const ensParamsStruct = this.ens.getEnsParamsStruct({
-            _owner: params.voucher.owner,
-            name: params.ens.purchaseInfo.normalizedDomainName,
-            duration: params.ens.purchaseInfo.duration,
-        });
-        const commitTransaction = await this.ens.getCommitTransaction(ensParamsStruct);
-        const completeENSRegistrationTransaction = await this.getCompleteENSRegistrationTransaction(params, ensParamsStruct);
-
-        const allTransactions = [commitTransaction, completeENSRegistrationTransaction];
-        return allTransactions;
     }
 
     async getDomainAvailability(params: GetDomainAvailabilityParams): Promise<VoucherAvailabilityResult> {

@@ -1,39 +1,16 @@
 import { Provider, uuidV4 } from "ethers";
+import { hexlify } from "ethers/utils";
 import { ENSService } from "./ensService";
 import { PolicyConfig } from "./policyService";
 import { VoucherService } from "./voucherService";
 import { IService, VoucherAvailable } from "@/base/types";
 import { v1 } from "uuid";
 import { kv } from "@vercel/kv";
-
-import { z } from 'zod';
-
-const jobSchema = z.object({
-  type: z.enum(['ensCommitment', 'completeEnsRegistration']),
-  id: z.string().uuid(),
-  tx: z.object({
-    to: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
-    gasLimit: z.string().optional(),
-    value: z.string().regex(/^0x[a-fA-F0-9]+$/).optional(),
-    data: z.string().regex(/^0x[a-fA-F0-9]+$/),
-  }),
-});
-
-const redeemJobSchema = z.object({
-  id: z.string().uuid(),
-  voucher: z.object({
-    policyId: z.string(),
-    owner: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
-    normalizedDomainName: z.string(),
-  }),
-  jobs: z.array(jobSchema),
-});
+import { DomainRedeemOperation, DomainRedeemOperationSchema } from "@/base/userOps/base";
+import BigNumber from "bignumber.js";
 
 // 30 minutes
 const EXPIRE_SECONDS = 30 * 60;
-
-export type JobSchema = z.infer<typeof jobSchema>;
-export type RedeemJobSchema = z.infer<typeof redeemJobSchema>;
 
 export class RedeemService implements IService {
     public static fromVoucherAndENS(voucher: VoucherService, ens: ENSService): RedeemService {
@@ -59,48 +36,65 @@ export class RedeemService implements IService {
         return `currentRedeem:${owner}:${policyId}`;
     }
 
-    public async getCurrentRedeemForUser(owner: string, policyId: string): Promise<RedeemJobSchema | null> {
+    public async getRedeemById(jobId: string): Promise<DomainRedeemOperation | null> {
+        const key = await kv.get<string>(jobId);
+        if (!key) {
+            return null;
+        }
+        const value = await kv.get<object>(key);
+        if (!value) {
+            return null;
+        }
+        return DomainRedeemOperationSchema.parse(value);
+    }
+
+    public async getCurrentRedeemForUser(owner: string, policyId: string): Promise<DomainRedeemOperation | null> {
         const key = this.makeKey(owner, policyId);
         const value = await kv.get<object>(key);
         if (!value) {
             return null;
         }
-        return redeemJobSchema.parse(value);
+        return DomainRedeemOperationSchema.parse(value);
     }
 
-
-    public async startRedeemProcess(availability: VoucherAvailable): Promise<RedeemJobSchema> {
-        const transactions = await this.voucher.createTransactions(availability);
-        const jobs: JobSchema[] = transactions.map(txAndType => {
-            const { tx, type } = txAndType;
-            return jobSchema.parse({
-                id: v1(),
-                type,
-                tx: {
-                    to: tx.to,
-                    gasLimit: tx.gasLimit?.toString(),
-                    value: tx.value?.toString(16),
-                    data: tx.data,
-                },
-            });
+    public async startRedeemProcess(availability: VoucherAvailable): Promise<DomainRedeemOperation> {
+        const ensDomain = this.ens.getEnsParamsStruct({
+            _owner: availability.voucher.owner,
+            name: availability.ens.purchaseInfo.normalizedDomainName,
+            duration: availability.ens.purchaseInfo.duration,
         });
-        const redeemJob: RedeemJobSchema = redeemJobSchema.parse({
+        console.log('ensDomain', ensDomain);
+        const domainRedeemOperation: DomainRedeemOperation = DomainRedeemOperationSchema.parse({
             id: v1(),
-            voucher: {
-                policyId: availability.voucher.policyId,
+            params: {
                 owner: availability.voucher.owner,
+                policyId: availability.voucher.policyId,
                 normalizedDomainName: availability.ens.purchaseInfo.normalizedDomainName,
             },
-            jobs,
+            ens: {
+                name: ensDomain.name,
+                _owner: ensDomain._owner.toString(),
+                duration: new BigNumber(ensDomain.duration.toString()).toNumber(),
+                secret: hexlify(ensDomain.secret),
+                resolver: ensDomain.resolver.toString(),
+                data: ensDomain.data.map(data => data.toString()),
+                reverseRecord: ensDomain.reverseRecord,
+                ownerControlledFuses: new BigNumber(ensDomain.ownerControlledFuses.toString()).toNumber(),
+            },
+            userOps: [
+                { id: v1(), type: 'ensCommitment' },
+                { id: v1(), type: 'completeENSRegistration' },
+            ],
         });
 
         const key = this.makeKey(availability.voucher.owner, availability.voucher.policyId);
-        const isSuccessful = await kv.setnx(key, JSON.stringify(redeemJob));
+        const isSuccessful = await kv.setnx(key, JSON.stringify(domainRedeemOperation));
         if (isSuccessful === 0) {
-            throw new Error('Redeem process already started');
+            throw new Error('Redeem process already started. Wait for it to expire');
         }
         await kv.expire(key, EXPIRE_SECONDS);
-        return redeemJob;
+        await kv.set(domainRedeemOperation.id, key);
+        return domainRedeemOperation;
     }
 
 }

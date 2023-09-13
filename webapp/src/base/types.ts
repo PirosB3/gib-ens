@@ -1,6 +1,47 @@
 import { PolicyConfig } from "@/services/policyService";
 import { Provider, ethers } from "ethers";
 
+import { z } from 'zod';
+
+export const EthereumAddress = z.string().refine(
+    address => /^0x[0-9a-fA-F]{40}$/.test(address),
+    {
+        message: "Invalid Ethereum address: must start with '0x', have a length of 42, and contain only hex chars",
+    }
+);
+
+export const EthereumBytes = z.string().refine(
+    value => /^0x[0-9a-fA-F]*$/.test(value),
+    {
+        message: "Invalid bytes format: must start with '0x' and contain only hex chars",
+    }
+);
+
+export const EthereumBytes32 = z.string().refine(
+    value => /^0x[0-9a-fA-F]{64}$/.test(value),
+    {
+        message: "Invalid EthereumBytes32 format: must start with '0x' and contain exactly 64 hex chars",
+    }
+);
+
+export const UserOperationZod = z.object({
+    sender: EthereumAddress,
+    nonce: EthereumBytes,
+    initCode: EthereumBytes,
+    callData: EthereumBytes,
+    callGasLimit: EthereumBytes,
+    verificationGasLimit: EthereumBytes,
+    preVerificationGas: EthereumBytes,
+    maxFeePerGas: EthereumBytes,
+    maxPriorityFeePerGas: EthereumBytes,
+    paymasterAndData: EthereumBytes,
+    signature: EthereumBytes,
+});
+
+export type UserOperationStruct = z.infer<typeof UserOperationZod>;
+
+
+
 export interface IService {
     getConfig(): PolicyConfig;
     getProvider(): Provider;

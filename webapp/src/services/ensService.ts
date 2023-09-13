@@ -4,7 +4,21 @@ import { IETHRegistrarController, Voucher } from "@gib-ens/sol/typechain-types";
 import { Contract } from "ethers";
 import { PolicyConfig } from "./policyService";
 import { ens_tokenize } from "@adraffy/ens-normalize";
-import { ENSAvailabilityResult, IService, TxAndType, TxForUserOperation } from "@/base/types";
+import { ENSAvailabilityResult, EthereumAddress, EthereumBytes, EthereumBytes32, IService, TxAndType, TxForUserOperation } from "@/base/types";
+import { z } from 'zod';
+
+export const ENSParamsZod = z.object({
+  name: z.string(),
+  _owner: EthereumAddress,
+  duration: z.number(),
+  secret: EthereumBytes32,
+  resolver: EthereumAddress,
+  data: z.array(EthereumBytes),
+  reverseRecord: z.boolean(),
+  ownerControlledFuses: z.number(),
+});
+
+type EncodedENSParams = z.infer<typeof ENSParamsZod>;
 
 export class ENSService implements IService {
     public static async fromProvider(provider: Provider, config: PolicyConfig): Promise<ENSService> {
@@ -46,6 +60,11 @@ export class ENSService implements IService {
             type: 'ensCommitment',
             tx: { to, data, value, gasLimit },
         }
+    }
+
+    public async isCommitmentSettled(commitment: string): Promise<boolean> {
+        const result = await this.controller.commitments(commitment);
+        return result > 0;
     }
 
     public getEnsParamsStruct(params: Pick<Voucher.ENSParamsStruct, "name" | "_owner" | "duration">): Voucher.ENSParamsStruct {
