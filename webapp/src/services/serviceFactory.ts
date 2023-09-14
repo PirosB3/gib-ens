@@ -11,6 +11,7 @@ export class ServiceFactory {
     private readonly config: PolicyConfig;
     private provider: AlchemyProvider;
     private ens: ENSService | undefined;
+    private alchemy: AlchemyGasManagerService | undefined;
 
     constructor(private readonly event: string) {
         this.config = getPolicySetting(event);
@@ -25,12 +26,11 @@ export class ServiceFactory {
     }
 
     async getUserOperationService() {
-        // const ens = await this.getEns();
-        const alchemy = await this.getAlchemyGasManagerService();
+        const alchemy = this.getAlchemyGasManagerService();
         return new UserOperationService(this.provider, alchemy)
     }
 
-    async getAlchemyGasManagerService() {
+    getAlchemyGasManagerService() {
         return new AlchemyGasManagerService(this.config, this.provider);
     }
 

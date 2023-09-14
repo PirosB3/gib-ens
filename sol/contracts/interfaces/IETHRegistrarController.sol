@@ -35,4 +35,5 @@ interface IETHRegistrarController {
     ) external view returns (IPriceOracle.Price memory);
 
     function commit(bytes32 commitment) external;
+    function commitments(bytes32 commitment) external view returns (uint256);
 }

@@ -3,13 +3,14 @@ import BigNumber from "bignumber.js";
 import { Contract, keccak256, AbiCoder, Provider } from "ethers";
 import { EntryPoint, EntryPoint__factory } from "userop/dist/typechain";
 import { concatHex } from "viem";
-import { AlchemyGasManagerService } from "./alchemyService";
+import { AlchemyGasManagerService, UserOperationReceipt } from "./alchemyService";
 
 export const ENTRYPOINT_ADDRESS = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789';
 const SIMPLE_ACCOUNT_FACTORY_ADDRESS = '0x9406cc6185a346906296840746125a0e44976454';
 const GET_ADDRESS_FUNCTION_PREFIX = keccak256(Buffer.from("getAddress(address,uint256)")).slice(0, 10) as any;
 const CREATE_ACCOUNT_FUNCTION_PREFIX = keccak256(Buffer.from("createAccount(address,uint256)")).slice(0, 10) as any;
 const EXECUTE_FUNCTION_PREFIX = keccak256(Buffer.from("execute(address,uint256,bytes)")).slice(0, 10) as any;
+
 
 export class UserOperationService {
     private readonly coder: AbiCoder;
@@ -43,6 +44,10 @@ export class UserOperationService {
         const params = this.coder.encode(['address', 'uint256'], [owner, this.simpleAccountIndex]);
         const concatenated = concatHex([CREATE_ACCOUNT_FUNCTION_PREFIX, params]);
         return concatHex([SIMPLE_ACCOUNT_FACTORY_ADDRESS, concatenated]);
+    }
+
+    public async getUserOperationReceipt(userOperationHash: string): Promise<UserOperationReceipt | undefined> {
+        return this.alchemy.getUserOperationReceipt(userOperationHash);
     }
 
     public async getUserOperation(address: string, tx: TxForUserOperation): Promise<UserOperationAndHash> {

@@ -1,9 +1,4 @@
 import { getOperatorFromJobId } from "@/base/userOps/base";
-import { AlchemyGasManagerService } from "@/services/alchemyService";
-import { ENSService } from "@/services/ensService";
-import { getPolicySetting } from "@/services/policyService";
-import { getEthersProvider } from "@/services/providerService";
-import { RedeemService } from "@/services/redeemService";
 import { ServiceFactory } from "@/services/serviceFactory";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -15,7 +10,7 @@ interface Props {
     }
 } 
 
-export async function GET(request: NextRequest, { params }: Props): Promise<NextResponse> {
+export async function GET(_request: NextRequest, { params }: Props): Promise<NextResponse> {
     const services = new ServiceFactory(params.event);
     const redeemService = await services.getRedeemService();
     const redeem = await redeemService.getRedeemById(params.jobId);
@@ -32,6 +27,6 @@ export async function GET(request: NextRequest, { params }: Props): Promise<Next
         })
     }
 
-    const status = await operator.getStatus(redeem);
+    const status = await operator.getStatus(redeem, params.stepId);
     return NextResponse.json(status)
 }

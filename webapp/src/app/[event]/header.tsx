@@ -3,9 +3,10 @@
 import React from 'react';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { useGetPublicPolicyContext } from './frontend';
+import Link from 'next/link';
 
 export function Header() {
-    const { eventName, networkId } = useGetPublicPolicyContext();
+    const { eventName, networkId, policyId } = useGetPublicPolicyContext();
     const { address } = useAccount();
     const { disconnect } = useDisconnect();
     const { connect, connectors } = useConnect();
@@ -13,7 +14,9 @@ export function Header() {
     return (
         <nav className="bg-blue-600 p-4 text-white">
             <div className="container mx-auto flex justify-between items-center">
-                <h1 className="text-2xl font-semibold">{eventName}</h1>
+                <h1 className="text-2xl font-semibold">
+                    <Link href={`/${policyId}`}>{eventName}</Link>
+                </h1>
 
                 {address ? (
                     <div className="flex items-center">

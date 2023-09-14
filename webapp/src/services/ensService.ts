@@ -6,6 +6,7 @@ import { PolicyConfig } from "./policyService";
 import { ens_tokenize } from "@adraffy/ens-normalize";
 import { ENSAvailabilityResult, EthereumAddress, EthereumBytes, EthereumBytes32, IService, TxAndType, TxForUserOperation } from "@/base/types";
 import { z } from 'zod';
+import BigNumber from "bignumber.js";
 
 export const ENSParamsZod = z.object({
   name: z.string(),
@@ -18,7 +19,13 @@ export const ENSParamsZod = z.object({
   ownerControlledFuses: z.number(),
 });
 
-type EncodedENSParams = z.infer<typeof ENSParamsZod>;
+// TODO: Works across all chains?
+const ENS_SETTLEMENT_TIME = 60;
+
+type FinalizationInformation = 
+  { status: "settled" } |
+  { status: "notFound" } |
+  { status: "pending", settlesAt: number }
 
 export class ENSService implements IService {
     public static async fromProvider(provider: Provider, config: PolicyConfig): Promise<ENSService> {
@@ -62,9 +69,16 @@ export class ENSService implements IService {
         }
     }
 
-    public async isCommitmentSettled(commitment: string): Promise<boolean> {
+    public async getFinalizationInformation(commitment: string): Promise<FinalizationInformation> {
         const result = await this.controller.commitments(commitment);
-        return result > 0;
+        const resultBn = new BigNumber(result.toString());
+        if (resultBn.eq(0)) return { status: "notFound" };
+
+        const settlementTime = resultBn.plus(ENS_SETTLEMENT_TIME);
+        const now = new BigNumber(new Date().getTime() / 1000);
+        if (settlementTime.lte(now)) return { status: "settled" };
+
+        return { status: "pending", settlesAt: settlementTime.toNumber() };
     }
 
     public getEnsParamsStruct(params: Pick<Voucher.ENSParamsStruct, "name" | "_owner" | "duration">): Voucher.ENSParamsStruct {
@@ -73,7 +87,7 @@ export class ENSService implements IService {
             name,
             _owner,
             duration,
-            resolver: '0xd7a4F6473f32aC2Af804B3686AE8F1932bC35750',
+            resolver: this.config.ensResolverContractAddress,
             secret: randomBytes(32),
             data: [],
             reverseRecord: false,

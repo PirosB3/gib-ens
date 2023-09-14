@@ -29,6 +29,7 @@ export class VoucherService implements IService {
     getConfig(): PolicyConfig {
         return this.ens.getConfig();
     }
+
     getProvider(): Provider {
         return this.ens.getProvider();
     }

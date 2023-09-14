@@ -20,6 +20,8 @@ export interface PendingOperation {
 
 export interface CompleteOperation {
     status: 'complete',
+    message?: string,
+    userOpHash?: string,
 }
 
 export type Operation = ReadyOperation | PendingOperation | CompleteOperation;
@@ -41,7 +43,7 @@ export const DomainRedeemOperationSchema = z.object({
 export type DomainRedeemOperation = z.infer<typeof DomainRedeemOperationSchema>;
 
 export interface Operator {
-    getStatus(redeemOperation: DomainRedeemOperation): Promise<Operation>;
+    getStatus(redeemOperation: DomainRedeemOperation, jobId: string): Promise<Operation>;
 }
 
 

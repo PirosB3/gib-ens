@@ -1,9 +1,8 @@
-import { redirect } from "next/navigation"
 import { PolicyConfig } from "./policyService"
-import { UserOperationStruct, UserOperationZod } from "@/base/types"
+import { EthereumAddress, EthereumBytes, UserOperationStruct, UserOperationZod } from "@/base/types"
 import { ENTRYPOINT_ADDRESS } from "./userOperationService"
 import { AlchemyProvider, Network } from "ethers"
-import { FetchRequest } from "ethers"
+import { z } from "zod"
 
 export interface PolicyRoot {
     data: Data
@@ -33,42 +32,37 @@ interface Rules {
     sponsorshipExpiryMs: string
 }
 
-interface AlchemySponsorTransactionResponse {
-    jsonrpc: string;
-    id: number;
-    result: {
-        maxPriorityFeePerGas: string;
-        maxFeePerGas: string;
-        paymasterAndData: string;
-        verificationGasLimit: string;
-        callGasLimit: string;
-        preVerificationGas: string;
-    };
-}
+const UserOperationReceiptSchema = z.object({
+    userOpHash: EthereumBytes,
+    entryPoint: EthereumAddress,
+    sender: EthereumAddress,
+    nonce: EthereumBytes,
+    paymaster: EthereumAddress,
+    actualGasCost: EthereumBytes,
+    actualGasUsed: EthereumBytes,
+    success: z.boolean(),
+    reason: z.string(),
+});
 
-// interface AlchemyUserOpReceiptResponse {
-//     jsonrpc: string;
-//     id: number;
-//     result: {
-//         maxPriorityFeePerGas: string;
-//         maxFeePerGas: string;
-//         paymasterAndData: string;
-//         verificationGasLimit: string;
-//         callGasLimit: string;
-//         preVerificationGas: string;
-//     };
-// }
+export type UserOperationReceipt = z.infer<typeof UserOperationReceiptSchema>;
 
-// sleep function
-function sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
+const DUMMY_SIGNATURE = '0xe8fe34b166b64d118dccf44c7198648127bf8a76a48a042862321af6058026d276ca6abb4ed4b60ea265d1e57e33840d7466de75e13f072bbd3b7e64387eebfe1b';
 
 export class AlchemyGasManagerService {
     private readonly rpcUrl: string
     constructor(private readonly config: PolicyConfig, private readonly provider: AlchemyProvider) {
         this.rpcUrl = `https://manage.g.alchemy.com/api/gasManager/policy/${config.alchemyGasPolicy}`;
+    }
+
+    public async getUserOperationReceipt(userOperationHash: string): Promise<UserOperationReceipt | undefined> {
+        console.log("BEFORE!");
+        const response = await this.provider.send(
+            'eth_getUserOperationReceipt', [ userOperationHash ]
+        );
+        if (response === null) return undefined;
+
+        const parsed = UserOperationReceiptSchema.parse(response);
+        return parsed;
     }
 
     public async requestGasAndPaymasterAndData(
@@ -79,7 +73,7 @@ export class AlchemyGasManagerService {
             {
                 policyId: this.config.alchemyGasPolicy,
                 entryPoint: ENTRYPOINT_ADDRESS,
-                dummySignature: '0xe8fe34b166b64d118dccf44c7198648127bf8a76a48a042862321af6058026d276ca6abb4ed4b60ea265d1e57e33840d7466de75e13f072bbd3b7e64387eebfe1b',
+                dummySignature: DUMMY_SIGNATURE,
                 userOperation: {
                     sender,
                     nonce,
@@ -102,21 +96,5 @@ export class AlchemyGasManagerService {
             paymasterAndData,
             signature: '0x',
         })
-    }
-
-    public async getWhitelist(): Promise<Set<string>> {
-        const result = await fetch(this.rpcUrl, {
-            next: { revalidate: 3600 },
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                "authorization": `Bearer ${this.config.alchemyGasBearerToken}`
-            },
-        })
-        const { data } = await result.json() as PolicyRoot;
-        if (data.policy.status !== 'active') {
-            return new Set();
-        }
-        return new Set(data.policy.rules.senderAllowlist.map((address: string) => address.toLowerCase()));
     }
 }

@@ -2,6 +2,7 @@
 
 import { UserOperationStruct } from "@/base/types";
 import { DomainRedeemOperation, Operation, ReadyOperation } from "@/base/userOps/base"
+import { JsonRpcError, JsonRpcPayload, JsonRpcResult } from "ethers";
 import { useState } from "react";
 import { useMutation } from "react-query";
 import { Client, UserOperationBuilder } from "userop";
@@ -33,6 +34,7 @@ export function JobWidget(props: JobWidgetProps) {
 
     const [isComplete, setIsComplete] = useState(false);
     const { data: walletClient, isLoading: walletIsLoading } = useWalletClient();
+
     const { isLoading, data } = useQuery(["redeem", props.operation.id, task.id], async () => {
         const query = await fetch(`/api/event/${props.operation.params.policyId}/job/${props.operation.id}/step/${task.id}`);
         const data: Operation = await query.json();
@@ -71,15 +73,17 @@ export function JobWidget(props: JobWidgetProps) {
                 body: JSON.stringify(requestOptions),
             });
             const json = await response.json();
+            if (json.error) {
+                const jsonError: JsonRpcError = json;
+                throw new Error(jsonError.error.message);
+            }
+            return true;
         },
     });
 
     const onSignButtonClick = async () => {
         if (data?.status !== "ready") return;
         const signature = await signMessageMutation.mutateAsync(data);
-        const client = await Client.init(process.env.NEXT_PUBLIC_RPC_URL!);
-
-        const builder = new UserOperationBuilder();
     }
 
     const taskLabel = TaskTypeToLabel[task.type] ?? "N/A";
@@ -89,6 +93,20 @@ export function JobWidget(props: JobWidgetProps) {
             <div className="flex items-center">
                 <span className="text-red-500">Status: not owner</span>
                 <p>Please select account {props.operation.params.owner} from your wallet</p>
+            </div>
+        )
+    } else if (signMessageMutation.isError) {
+        content = (
+            <div className="flex items-center">
+                <span className="text-red-500">Status: error</span>
+                <p>{(signMessageMutation.error as any).toString()}</p>
+            </div>
+        )
+    } else if (signMessageMutation.isSuccess && data?.status === "ready") {
+        content = (
+            <div>
+                <h3>Transaction sent</h3>
+                <a target="_blank" href={`https://www.jiffyscan.xyz/userOpHash/${data.hash}`}>Link</a>
             </div>
         )
     } else if (isLoading) {
@@ -109,7 +127,7 @@ export function JobWidget(props: JobWidgetProps) {
     } else if (data?.status === "pending") {
         content = (
             <div className="flex items-center">
-                <span className="text-yellow-500">Status: pending on previous actions</span>
+                <span className="text-yellow-500">Status: {data?.message ?? 'pending on previous actions'}</span>
             </div>
         );
     } else if (data?.status === "complete") {
@@ -118,6 +136,7 @@ export function JobWidget(props: JobWidgetProps) {
                 <span className="text-green-500">Status: complete</span>
             </div>
         );
+    } else if (signMessageMutation.isError) {
     }
 
     return (

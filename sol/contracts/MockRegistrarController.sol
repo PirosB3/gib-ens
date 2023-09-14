@@ -82,4 +82,8 @@ contract MockRegistrarController is IETHRegistrarController {
     ) external view returns (IPriceOracle.Price memory) {
         return IPriceOracle.Price(0, 0);
     }
+
+    function commitments(bytes32 commitment) external view override returns (uint256) {
+        return 0;
+    }
 }
