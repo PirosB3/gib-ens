@@ -20,7 +20,7 @@ export class EnsCommitmentOperation implements Operator {
 
         const commitUserOp = await kv.get(`ensCommitment:${commitment}`);
         if (commitUserOp) {
-            const {hash, userOp } = UserOperationAndHashBundle.parse(commitUserOp);
+            const { hash, userOp } = UserOperationAndHashBundle.parse(commitUserOp);
             return {
                 status: 'ready',
                 userOp,

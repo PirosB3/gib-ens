@@ -1,6 +1,6 @@
 import { ServiceFactory } from "@/services/serviceFactory";
-import { redirect } from "next/navigation";
 import { JobWidget } from "./widget";
+import { NextResponse } from "next/server";
 
 interface Props {
     params: {
@@ -24,7 +24,9 @@ export default async function Page({ params }: Props) {
     const redeemSvc = await factory.getRedeemService();
     const operation = await redeemSvc.getRedeemById(params.jobId);
     if (!operation) {
-        return redirect("/")
+        return new NextResponse(JSON.stringify({
+            error: 'Not found',
+        }), { status: 404 });
     }
 
     const jobWidgets = operation.userOps.map((op, idx) => {

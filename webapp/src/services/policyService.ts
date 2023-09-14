@@ -1,7 +1,10 @@
+import { get } from 'http';
+import { pick } from 'lodash';
 import { redirect } from 'next/navigation'
 import { z } from 'zod';
 
 const PolicySchema = z.object({
+  eventName: z.string(),
   policyId: z.string(),
   alchemyGasPolicy: z.string(),
   alchemyGasBearerToken: z.string(),
@@ -16,7 +19,14 @@ const PolicySchema = z.object({
   voucherValiditySeconds: z.number().int().positive(),
 });
 
+const PublicPolicySchema = PolicySchema.pick({
+    eventName: true,
+    policyId: true,
+    networkId: true,
+}).strict();
+
 export type PolicyConfig = z.infer<typeof PolicySchema>;
+export type PublicPolicyConfig = z.infer<typeof PublicPolicySchema>;
 
 const defaultPolicy: Partial<PolicyConfig> = {
     voucherValiditySeconds: 10 * 60,
@@ -26,7 +36,8 @@ const defaultPolicy: Partial<PolicyConfig> = {
 
 
 const POLICIES: { [key: string]: any } = {
-    "ETHNewYork2023": {
+    "ETHNewYork2023Goerli": {
+        "eventName": "ETH New York 2023 (Goerli)",
         "alchemyGasPolicy": process.env.ETHNY2023_ALCHEMY_POLICY_ID,
         "networkId": process.env.ETHNY2023_NETWORK_NAME,
         "alchemyApiKey": process.env.ETHNY2023_ALCHEMY_API_KEY,
@@ -49,6 +60,12 @@ export function getPolicySetting(policyId: string): PolicyConfig {
         ...policy,
     });
     return parsedConfig;
+}
+
+export function getPublicPolicySetting(policyId: string): PublicPolicyConfig {
+    const policy = getPolicySetting(policyId);
+    const publicFields = pick(policy, Object.keys(PublicPolicySchema.shape));
+    return PublicPolicySchema.parse(publicFields);
 }
 
 export function getPolicySettingOrRedirect(policyId: string, redirectUrl='/'): PolicyConfig {

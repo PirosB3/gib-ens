@@ -1,67 +1,55 @@
 "use client"
 
-import { RainbowKitProvider, connectorsForWallets, getDefaultWallets } from "@rainbow-me/rainbowkit";
-import { argentWallet, trustWallet, ledgerWallet } from "@rainbow-me/rainbowkit/wallets";
-import { PropsWithChildren, useState } from "react"
+import { PublicPolicyConfig } from "@/services/policyService";
+import { PropsWithChildren, createContext, useContext, useState } from "react"
 import { QueryClient, QueryClientProvider } from "react-query";
+import { goerli } from "viem/chains";
+
 import { WagmiConfig, configureChains, createConfig, mainnet } from 'wagmi'
-import { arbitrum, base, goerli, optimism, polygon, zora } from 'wagmi/chains'
-import { publicProvider } from 'wagmi/providers/public'
+import { MetaMaskConnector } from "wagmi/connectors/metaMask";
+import { alchemyProvider } from 'wagmi/providers/alchemy'
 
-const { chains, publicClient, webSocketPublicClient } = configureChains(
-  [
-    mainnet,
-    polygon,
-    optimism,
-    arbitrum,
-    base,
-    zora,
-    ...(process.env.NEXT_PUBLIC_ENABLE_TESTNETS === 'true' ? [goerli] : []),
-  ],
-  [publicProvider()]
-);
+const { publicClient, webSocketPublicClient } = configureChains(
+  [mainnet, goerli],
+  [alchemyProvider({
+    apiKey: process.env.NEXT_PUBLIC_ALCHEMY_KEY!,
+  })],
+)
 
-const projectId = 'YOUR_PROJECT_ID';
-
-const { wallets } = getDefaultWallets({
-  appName: 'RainbowKit demo',
-  projectId,
-  chains,
-});
-
-const demoAppInfo = {
-  appName: 'Rainbowkit Demo',
-};
-
-const connectors = connectorsForWallets([
-  ...wallets,
-  {
-    groupName: 'Other',
-    wallets: [
-      argentWallet({ projectId, chains }),
-      trustWallet({ projectId, chains }),
-      ledgerWallet({ projectId, chains }),
-    ],
-  },
-]);
+const connector = new MetaMaskConnector({
+  chains: [mainnet, goerli],
+})
 
 const wagmiConfig = createConfig({
   autoConnect: true,
-  connectors,
   publicClient,
   webSocketPublicClient,
-});
+  connectors: [connector],
+})
 
+interface FrontendProps {
+  config: PublicPolicyConfig;
+}
 
-export function Frontend({children}: PropsWithChildren) {
-    const [client] = useState(new QueryClient());
-    return (
-        <QueryClientProvider client={client}>
-          <WagmiConfig config={wagmiConfig}>
-            <RainbowKitProvider chains={chains}>
-              {children}
-            </RainbowKitProvider>
-          </WagmiConfig>
-        </QueryClientProvider>
-    )
+const PublicPolicyContext = createContext<PublicPolicyConfig | undefined>(undefined);
+
+export const useGetPublicPolicyContext = (): PublicPolicyConfig => {
+  const context = useContext(PublicPolicyContext);
+  if (context === undefined) {
+    throw new Error('useGetPublicPolicyContext must be used within a PublicPolicyProvider');
+  }
+  return context;
+};
+
+export function Frontend({ children, config }: PropsWithChildren<FrontendProps>) {
+  const [client] = useState(new QueryClient());
+  return (
+    <PublicPolicyContext.Provider value={config}>
+      <QueryClientProvider client={client}>
+        <WagmiConfig config={wagmiConfig}>
+          {children}
+        </WagmiConfig>
+      </QueryClientProvider>
+    </PublicPolicyContext.Provider>
+  )
 }

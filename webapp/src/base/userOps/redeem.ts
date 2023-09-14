@@ -47,7 +47,6 @@ export class RedeemOperation implements Operator {
             }
         }
         const { tx } = await this.voucher.getCompleteENSRegistrationTransaction(domainAvailability, redeem.ens);
-        console.log(tx);
         const userOps = await this.userOp.getUserOperation(redeem.params.owner, tx);
         const isSuccessful = await kv.setnx(`redeem:${commitment}`, JSON.stringify(userOps));
         if (isSuccessful === 0) {

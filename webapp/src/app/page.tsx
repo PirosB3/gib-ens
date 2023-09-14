@@ -7,31 +7,7 @@ import { getEthersProvider } from '@/services/providerService';
 
 
 export default async function Home() {
-  const datas = await kv.get("Hello");
-  console.log(datas);
 
-  const policy = getPolicySetting("ETHNewYork2023");
-
-  const gasService = new AlchemyGasManagerService(policy);
-  const data = await gasService.getWhitelist();
-
-  const ensService = await ENSService.fromProvider(getEthersProvider(policy), policy);
-
-  const names = [
-    "qqs",
-    "hello",
-    "microsoft",
-    "kekekkeekkekek",
-    "baller",
-    "baller--2288",
-  ];
-  const resolutions = await Promise.all(names.map(name => ensService.getDomainAvailability(name)));
-  const results = resolutions.map((resolution, index) => {
-    const name = names[index];
-    return (
-      <li>{name} - {resolution.isAvailable ? `YES! - ${resolution.purchaseInfo.price}` : "NO"}</li>
-    )
-  });
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
@@ -135,7 +111,6 @@ export default async function Home() {
               -&gt;
             </span>
           </h2>
-          {results}
         </a>
       </div>
     </main>

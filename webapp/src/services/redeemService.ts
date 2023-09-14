@@ -31,12 +31,25 @@ export class RedeemService implements IService {
         return this.provider;
     }
 
-    private makeKey(owner: string, policyId: string): string {
+    public makeCurrentRedeemForUserAndEventKey(owner: string, policyId: string): string {
         return `currentRedeem:${owner}:${policyId}`;
     }
 
+    public makeJobIdKey(jobId: string): string {
+        return `redeem:${jobId}`;
+    }
+
+    private makeKeys(operation: DomainRedeemOperation): { currentRedeemForUserAndEvent: string, redeemUidKey: string } {
+        const { owner, policyId } = operation.params;
+        const { id } = operation;
+        const currentRedeemKey = this.makeCurrentRedeemForUserAndEventKey(owner, policyId);
+        const redeemUidKey = this.makeJobIdKey(id)
+        return { currentRedeemForUserAndEvent: currentRedeemKey, redeemUidKey };
+    }
+
     public async getRedeemById(jobId: string): Promise<DomainRedeemOperation | null> {
-        const key = await kv.get<string>(jobId);
+        const redeemUidKey = this.makeJobIdKey(jobId)
+        const key = await kv.get<string>(redeemUidKey);
         if (!key) {
             return null;
         }
@@ -48,7 +61,7 @@ export class RedeemService implements IService {
     }
 
     public async getCurrentRedeemForUser(owner: string): Promise<DomainRedeemOperation | null> {
-        const key = this.makeKey(owner, this.config.policyId);
+        const key = this.makeCurrentRedeemForUserAndEventKey(owner, this.config.policyId);
         const value = await kv.get<object>(key);
         if (!value) {
             return null;
@@ -62,7 +75,6 @@ export class RedeemService implements IService {
             name: availability.ens.purchaseInfo.normalizedDomainName,
             duration: availability.ens.purchaseInfo.duration,
         });
-        console.log('ensDomain', ensDomain);
         const domainRedeemOperation: DomainRedeemOperation = DomainRedeemOperationSchema.parse({
             id: v1(),
             params: {
@@ -86,13 +98,13 @@ export class RedeemService implements IService {
             ],
         });
 
-        const key = this.makeKey(availability.voucher.owner, availability.voucher.policyId);
-        const isSuccessful = await kv.setnx(key, JSON.stringify(domainRedeemOperation));
+        const {currentRedeemForUserAndEvent, redeemUidKey } = this.makeKeys(domainRedeemOperation);
+        const isSuccessful = await kv.setnx(currentRedeemForUserAndEvent, JSON.stringify(domainRedeemOperation));
         if (isSuccessful === 0) {
             throw new Error('Redeem process already started. Wait for it to expire');
         }
-        await kv.expire(key, EXPIRE_SECONDS);
-        await kv.set(domainRedeemOperation.id, key);
+        await kv.expire(currentRedeemForUserAndEvent, EXPIRE_SECONDS);
+        await kv.set(redeemUidKey, currentRedeemForUserAndEvent);
         return domainRedeemOperation;
     }
 
