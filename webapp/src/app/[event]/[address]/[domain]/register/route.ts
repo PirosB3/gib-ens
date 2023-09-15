@@ -11,6 +11,7 @@ import { concatHex } from "viem";
 import { Network } from "ethers";
 import { AlchemyProvider } from "ethers";
 import { RedeemService } from "@/services/redeemService";
+import { notFound } from "next/navigation";
 
 
 
@@ -38,9 +39,7 @@ export async function POST(request: NextRequest, props: Props): Promise<NextResp
         policyId: config.policyId,
     });
     if (!availability.isAvailable) {
-        return new NextResponse(JSON.stringify(availability), {
-            status: 404,
-        });
+        return notFound();
     }
     const redeemService = RedeemService.fromVoucherAndENS(voucher, ens);
     const redeemJob = await redeemService.startRedeemProcess(availability);
