@@ -20,12 +20,12 @@ export const ENSParamsZod = z.object({
 });
 
 // TODO: Works across all chains?
-const ENS_SETTLEMENT_TIME = 60;
+const ENS_SETTLEMENT_TIME_SECONDS = 75;
 
 type FinalizationInformation = 
   { status: "settled" } |
   { status: "notFound" } |
-  { status: "pending", settlesAt: number }
+  { status: "pending", settlesAt: number, startedProcessAt: number };
 
 export class ENSService implements IService {
     public static async fromProvider(provider: Provider, config: PolicyConfig): Promise<ENSService> {
@@ -74,11 +74,11 @@ export class ENSService implements IService {
         const resultBn = new BigNumber(result.toString());
         if (resultBn.eq(0)) return { status: "notFound" };
 
-        const settlementTime = resultBn.plus(ENS_SETTLEMENT_TIME);
+        const settlementTime = resultBn.plus(ENS_SETTLEMENT_TIME_SECONDS);
         const now = new BigNumber(new Date().getTime() / 1000);
         if (settlementTime.lte(now)) return { status: "settled" };
 
-        return { status: "pending", settlesAt: settlementTime.toNumber() };
+        return { status: "pending", settlesAt: settlementTime.toNumber(), startedProcessAt: resultBn.toNumber() };
     }
 
     public getEnsParamsStruct(params: Pick<Voucher.ENSParamsStruct, "name" | "_owner" | "duration">): Voucher.ENSParamsStruct {

@@ -37,20 +37,24 @@ export class EnsCommitmentOperation implements Operator {
         return userOps;
     }
 
-    async getStatus(redeem: DomainRedeemOperation, _jobId: string): Promise<Operation> {
+    async getStatus(redeem: DomainRedeemOperation, jobId: string): Promise<Operation> {
         const userOps = await this.getUserOperation(redeem);
         const receipt = await this.userOp.getUserOperationReceipt(userOps.hash);
         if (receipt?.success) {
             return {
+                id: jobId,
+                type: 'ensCommitment',
                 status: 'complete',
                 userOpHash: userOps.hash,
-                message: `ENS Commitment is complete. Please wait as we initialize Step 2`,
+                reason: 'userOpSuccessful',
             }
         }
 
         // If not from cache, create now
         const { hash, userOp } = userOps;
         return {
+            id: jobId,
+            type: 'ensCommitment',
             status: 'ready',
             userOp,
             hash,

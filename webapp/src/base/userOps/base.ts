@@ -5,23 +5,32 @@ import { ServiceFactory } from "@/services/serviceFactory";
 import { RedeemOperation } from "./redeem";
 import { EnsCommitmentOperation } from "./ensCommitment";
 
+export const OperationTypeSchema = z.enum(["ensCommitment", "completeENSRegistration"]);
+export type OperationType = z.infer<typeof OperationTypeSchema>;
 export type OperationStatus = 'ready' | 'complete' | 'pending';
 
-export interface ReadyOperation {
+interface BaseOperation {
+    id: string;
+    type: OperationType;
+    status: OperationStatus;
+}
+
+export interface ReadyOperation extends BaseOperation {
     status: 'ready',
     userOp: UserOperationStruct,
     hash: string,
 }
 
-export interface PendingOperation {
+export interface PendingOperation extends BaseOperation {
     status: 'pending',
-    message: string,
+    reason: 'ensCommitmentNotOnchainYet' | 'ensCommitmentNotSettled'
+    pctComplete?: number,
 }
 
-export interface CompleteOperation {
+export interface CompleteOperation extends BaseOperation {
     status: 'complete',
-    message?: string,
     userOpHash?: string,
+    reason: 'userOpSuccessful' | 'alreadyRedeemedAnotherDomain'
 }
 
 export type Operation = ReadyOperation | PendingOperation | CompleteOperation;
@@ -36,7 +45,7 @@ export const DomainRedeemOperationSchema = z.object({
     ens: ENSParamsZod,
     userOps: z.array(z.object({
         id: z.string().uuid(),
-        type: z.enum(['ensCommitment', 'completeENSRegistration']),
+        type: OperationTypeSchema,
     }))
 });
 

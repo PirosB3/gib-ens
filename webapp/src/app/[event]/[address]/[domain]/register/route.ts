@@ -1,5 +1,5 @@
 import { ENSService } from "@/services/ensService";
-import { getPolicySettingOrRedirect } from "@/services/policyService";
+import { getPolicySettingOr404 } from "@/services/policyService";
 import { getEthersProvider } from "@/services/providerService";
 import { ENTRYPOINT_ADDRESS, UserOperationService } from "@/services/userOperationService";
 import { VoucherService } from "@/services/voucherService";
@@ -28,7 +28,7 @@ interface Props {
 }
 
 export async function POST(request: NextRequest, props: Props): Promise<NextResponse> {
-    const config = getPolicySettingOrRedirect(props.params.event);
+    const config = getPolicySettingOr404(props.params.event);
 
     const provider = getEthersProvider(config);
     const ens = await ENSService.fromProvider(provider, config);

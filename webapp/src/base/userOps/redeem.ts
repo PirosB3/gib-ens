@@ -1,10 +1,10 @@
-import { ENSParamsZod, ENSService } from "@/services/ensService";
+import { ENSService } from "@/services/ensService";
 import { DomainRedeemOperation, Operation, Operator } from "./base";
-import { z } from 'zod';
-import { EthereumAddress, UserOperationAndHash, UserOperationAndHashBundle } from "../types";
+import { UserOperationAndHash, UserOperationAndHashBundle } from "../types";
 import { UserOperationService } from "@/services/userOperationService";
 import { VoucherService } from "@/services/voucherService";
 import { kv } from "@vercel/kv";
+import { floor, now } from "lodash";
 
 
 
@@ -46,15 +46,21 @@ export class RedeemOperation implements Operator {
     }
 
     async getStatus(redeem: DomainRedeemOperation, jobId: string): Promise<Operation> {
+        const partial: Pick<Operation, "id" | "type"> = {
+            id: jobId,
+            type: 'completeENSRegistration',
+        }
+
         // Check if finalized states have been reached
         const userOpFromCache = await this.getUserOpFromCache(jobId);
         if (userOpFromCache) {
             const receipt = await this.userOp.getUserOperationReceipt(userOpFromCache.hash);
             if (receipt?.success) {
                 return {
+                    ...partial,
                     status: 'complete',
                     userOpHash: userOpFromCache.hash,
-                    message: 'Domain registration process completed',
+                    reason: 'userOpSuccessful',
                 }
             }
         }
@@ -62,23 +68,43 @@ export class RedeemOperation implements Operator {
         // Simply check if the voucher has been redeemed already before proceeding
         const alreadyRedeemed = await this.voucher.isAlreadyRedeemed(redeem.params.owner, redeem.params.policyId);
         if (alreadyRedeemed) {
-            return { status: 'complete', message: 'You already redeemed a domain' };
+            return {
+                ...partial,
+                status: 'complete',
+                reason: 'alreadyRedeemedAnotherDomain',
+            }
         }
 
         // Generating User Op is expensive, try to defer this as much as possible by checking pending states
         const commitment = await this.ens.getCommitmentHash(redeem.ens);
         const finalizationInformation = await this.ens.getFinalizationInformation(commitment);
         if (finalizationInformation.status === "notFound") {
-            return { status: 'pending', message: 'ENS commitment has not yet been seen on-chain' };
+            return {
+                ...partial,
+                status: 'pending',
+                reason: 'ensCommitmentNotOnchainYet',
+            }
         }
         if (finalizationInformation.status === "pending") {
-            return { status: 'pending', message: `ENS commitment will be settled at ${new Date(finalizationInformation.settlesAt * 1000).toLocaleString()}` };
+            const { settlesAt, startedProcessAt } = finalizationInformation;
+            
+            const nowSeconds = now() / 1000;
+            const elapsed = nowSeconds - startedProcessAt;
+            const remaining = settlesAt - startedProcessAt;
+            const pctComplete = floor((elapsed / remaining) * 100);
+            return {
+                ...partial,
+                status: 'pending',
+                reason: 'ensCommitmentNotSettled',
+                pctComplete,
+            }
         }
 
         // Generate User op
         const userOps = userOpFromCache ?? await this.generateUserOperation(redeem, jobId);
         const { hash, userOp } = userOps;
         return {
+            ...partial,
             status: 'ready',
             userOp,
             hash,

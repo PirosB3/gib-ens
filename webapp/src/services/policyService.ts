@@ -1,6 +1,6 @@
 import { get } from 'http';
 import { pick } from 'lodash';
-import { redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { z } from 'zod';
 
 const PolicySchema = z.object({
@@ -63,15 +63,15 @@ export function getPolicySetting(policyId: string): PolicyConfig {
 }
 
 export function getPublicPolicySetting(policyId: string): PublicPolicyConfig {
-    const policy = getPolicySetting(policyId);
+    const policy = getPolicySettingOr404(policyId);
     const publicFields = pick(policy, Object.keys(PublicPolicySchema.shape));
     return PublicPolicySchema.parse(publicFields);
 }
 
-export function getPolicySettingOrRedirect(policyId: string, redirectUrl='/'): PolicyConfig {
+export function getPolicySettingOr404(policyId: string, redirectUrl='/'): PolicyConfig {
     try {
         return getPolicySetting(policyId);
     } catch (e) {
-        redirect(redirectUrl);
+        notFound()
     }
 }

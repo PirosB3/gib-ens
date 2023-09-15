@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getPolicySettingOrRedirect } from "../../../services/policyService";
+import { getPolicySettingOr404 } from "../../../services/policyService";
 import { z } from "zod";
 import { AlchemyGasManagerService } from "@/services/alchemyService";
 import { RegisterDomain } from "./registerDomain";
