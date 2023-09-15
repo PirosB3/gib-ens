@@ -8,6 +8,7 @@ import { goerli } from "viem/chains";
 import { WagmiConfig, configureChains, createConfig, mainnet } from 'wagmi'
 import { MetaMaskConnector } from "wagmi/connectors/metaMask";
 import { alchemyProvider } from 'wagmi/providers/alchemy'
+import { PublicPolicyContext } from "./context";
 
 const { publicClient, webSocketPublicClient } = configureChains(
   [mainnet, goerli],
@@ -30,16 +31,6 @@ const wagmiConfig = createConfig({
 interface FrontendProps {
   config: PublicPolicyConfig;
 }
-
-const PublicPolicyContext = createContext<PublicPolicyConfig | undefined>(undefined);
-
-export const useGetPublicPolicyContext = (): PublicPolicyConfig => {
-  const context = useContext(PublicPolicyContext);
-  if (context === undefined) {
-    throw new Error('useGetPublicPolicyContext must be used within a PublicPolicyProvider');
-  }
-  return context;
-};
 
 export function Frontend({ children, config }: PropsWithChildren<FrontendProps>) {
   const [client] = useState(new QueryClient());
