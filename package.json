@@ -1,5 +1,5 @@
 {
   "name": "gib-ens",
   "private": true,
-  "workspaces": ["sol"]
+  "workspaces": ["sol", "webapp"]
 }
