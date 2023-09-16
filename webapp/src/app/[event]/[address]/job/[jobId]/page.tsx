@@ -32,7 +32,7 @@ export default async function Page({ params }: Props) {
                 throw new Error(`Unknown operation type ${op.type}`)
         }
         return (
-            <div className="mt-2">
+            <div key={idx} className="mt-2">
                 {content}
             </div>
         )
@@ -40,8 +40,6 @@ export default async function Page({ params }: Props) {
 
     return (
         <div className="bg-white max-w-screen-lg rounded-lg w-full mx-auto">
-            {/* <h1 className="text-xl font-bold mb-6">Processing redeem of ENS domain {operation.params.normalizedDomainName}.eth</h1> */}
-            {/* Overview Section */}
             <div className="mx-auto mt-6 mb-8 px-2">
                 <h1 className="text-3xl font-semibold mb-4">ENS Domain Registration Process</h1>
                 <p className="text-gray-700 mb-4">Registering an Ethereum Name Service (ENS) domain is a vital step towards simplifying Ethereum addresses, making them more user-friendly and readable. The process consists of two main steps:</p>
