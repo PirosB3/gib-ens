@@ -20,7 +20,7 @@ export function CompleteENSRedeemWidget(props: ENSRedeemWidgetProps & { data: Co
                 </div>
                 <div className="p-6">
                     <h2 className="text-xl font-semibold mb-2 hover:text-gray-700 transition-colors duration-200">ENS Domain Redemption</h2>
-                    <p className="text-gray-600 mb-4">Congratulations! You've successfully redeemed your ENS name. Your domain is now fully registered and ready to use.</p>
+                    <p className="text-gray-600 mb-4">Congratulations! You&apos;ve successfully redeemed your ENS name. Your domain is now fully registered and ready to use.</p>
 
                     {props.data.userOpHash ? (
                         <a href={`https://www.jiffyscan.xyz/userOpHash/${props.data.userOpHash}`} className="text-green-500 hover:underline mb-4 block">View the final User Operation on Etherscan</a>
@@ -120,7 +120,7 @@ export function PendingENSRedeemWidget(props: ENSRedeemWidgetProps & { data: Pen
                 </div>
                 <div className="p-6">
                     <h2 className="text-xl font-semibold mb-2 hover:text-gray-700 transition-colors duration-200">Finalize Registration</h2>
-                    <p className="text-gray-600 mb-4">Before moving to this step, please ensure that you've successfully completed the commitment process in Step 1. Once Step 1 is finalized, you can proceed to finalize the registration of your ENS domain here.</p>
+                    <p className="text-gray-600 mb-4">Before moving to this step, please ensure that you&apos;ve successfully completed the commitment process in Step 1. Once Step 1 is finalized, you can proceed to finalize the registration of your ENS domain here.</p>
 
                     {/* Pending Message */}
                     <div className="text-orange-700 border border-orange-300 p-2 rounded">
