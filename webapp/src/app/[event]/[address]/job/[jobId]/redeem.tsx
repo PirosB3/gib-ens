@@ -115,7 +115,7 @@ export function PendingENSRedeemWidget(props: ENSRedeemWidgetProps & { data: Pen
     return (
         <div className="max-w mx-auto mt-4">
             <div className="block bg-white rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-200 ease-in">
-                <div className="bg-orange-300 text-white p-1">
+                <div className="bg-orange-300 text-white p-2">
                     <h1 className="text-2xl">Step 2 - Awaiting Step 1 Completion</h1>
                 </div>
                 <div className="p-6">
@@ -147,5 +147,5 @@ export function ENSRedeemWidget(props: ENSRedeemWidgetProps) {
     if (data?.status === "complete") {
         return <CompleteENSRedeemWidget {...props} data={data} />
     }
-    return <LoadingWidget />
+    return <LoadingWidget title="Step 2 - Commit to ENS Domain" />
 }
