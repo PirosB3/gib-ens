@@ -1,7 +1,7 @@
 "use client"
 
 import { DomainRedeemOperation, CompleteOperation, ReadyOperation, PendingOperation } from "@/base/userOps/base";
-import { useGetJobStatus, useSignUserOperation } from "./base";
+import { Spinner, useGetJobStatus, useSignUserOperation } from "./base";
 import { LoadingWidget } from "./ensCommitment";
 
 export interface ENSRedeemWidgetProps {
@@ -48,6 +48,7 @@ export function ReadyENSRedeemWidget(props: ENSRedeemWidgetProps & { data: Ready
                 <h2 className="text-xl font-semibold mb-2 hover:text-gray-700 transition-colors duration-200">Redemption Process In Progress</h2>
                 <p className="text-gray-600 mb-4">Your ENS name redemption is currently in progress. A User Operation has been sent to finalize the registration.</p>
                 <a target="_blank" href={`https://www.jiffyscan.xyz/userOpHash/${props.data.hash}`} className="text-blue-500 hover:underline mb-4 block">View your User Operation on Etherscan</a>
+                <Spinner />
             </div>
         )
     } else {
