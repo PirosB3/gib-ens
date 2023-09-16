@@ -3,3 +3,6 @@
 @tailwind utilities;
 
 
+.foo {
+    background-color: antiquewhite;
+}
